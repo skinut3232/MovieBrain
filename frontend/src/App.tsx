@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import MovieDetailPage from './pages/MovieDetailPage';
 import RegisterPage from './pages/RegisterPage';
 import SearchPage from './pages/SearchPage';
+import RecommendPage from './pages/RecommendPage';
 import WatchHistoryPage from './pages/WatchHistoryPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/movie/:titleId" element={<MovieDetailPage />} />
         <Route path="/history" element={<WatchHistoryPage />} />
+        <Route path="/recommend" element={<RecommendPage />} />
         <Route path="/lists" element={<ListsPageWrapper />} />
         <Route path="/lists/:listId" element={<ListDetailPage />} />
       </Route>

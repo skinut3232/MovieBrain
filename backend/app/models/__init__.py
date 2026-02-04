@@ -16,6 +16,7 @@ from app.models.personal import (
     Watch,
     WatchTag,
 )
+from app.models.recommender import MovieEmbedding, ProfileTaste
 from app.models.user import Profile, User
 
 __all__ = [
@@ -35,4 +36,6 @@ __all__ = [
     "ListType",
     "MovieFlag",
     "FlagType",
+    "MovieEmbedding",
+    "ProfileTaste",
 ]

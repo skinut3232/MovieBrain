@@ -7,8 +7,8 @@ from app.config import settings
 from app.core.dependencies import get_db
 from app.database import Base
 from app.main import app
-from app.models import catalog, personal, user  # noqa: F401 - ensure models registered
-from app.models.catalog import CatalogTitle
+from app.models import catalog, personal, recommender, user  # noqa: F401 - ensure models registered
+from app.models.catalog import CatalogRating, CatalogTitle
 
 # Use a separate test database
 TEST_DB_URL = settings.DATABASE_URL.rsplit("/", 1)[0] + "/moviebrain_test"
@@ -41,6 +41,14 @@ def create_test_db():
         if not result:
             conn.execute(text("CREATE DATABASE moviebrain_test"))
     default_engine.dispose()
+
+    # Enable pgvector extension in test database (if available)
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
     Base.metadata.create_all(bind=engine)
     yield
@@ -123,4 +131,64 @@ def seed_movies(db):
         db.add(title)
         db.flush()
         ids.append(title.id)
+    return ids
+
+
+@pytest.fixture
+def seed_movies_with_embeddings(db):
+    """Insert movies with ratings and deterministic fake embeddings.
+
+    Creates 10 movies with embeddings and ratings suitable for
+    recommendation testing. Returns list of title ids.
+    """
+    import numpy as np
+
+    model_id = "text-embedding-3-small"
+    ids = []
+    genres_list = ["Action", "Comedy", "Drama", "Sci-Fi", "Horror",
+                   "Action,Sci-Fi", "Comedy,Drama", "Drama,Horror", "Action", "Comedy"]
+
+    for i in range(10):
+        title = CatalogTitle(
+            imdb_tconst=f"tt100000{i}",
+            primary_title=f"Embed Movie {i}",
+            original_title=f"Embed Movie {i}",
+            title_type="movie",
+            start_year=2000 + i,
+            runtime_minutes=90 + i * 5,
+            genres=genres_list[i],
+        )
+        db.add(title)
+        db.flush()
+        ids.append(title.id)
+
+        # Add rating
+        rating = CatalogRating(
+            title_id=title.id,
+            average_rating=5.0 + i * 0.5,
+            num_votes=1000 + i * 500,
+        )
+        db.add(rating)
+        db.flush()
+
+        # Create a deterministic embedding vector
+        rng = np.random.RandomState(seed=i)
+        vec = rng.randn(1536).astype(np.float32)
+        vec = vec / np.linalg.norm(vec)
+        vec_str = "[" + ",".join(str(float(x)) for x in vec) + "]"
+
+        db.execute(
+            text("""
+                INSERT INTO movie_embeddings (title_id, model_id, embedding, embedding_text, updated_at)
+                VALUES (:title_id, :model_id, CAST(:embedding AS vector), :embedding_text, now())
+            """),
+            {
+                "title_id": title.id,
+                "model_id": model_id,
+                "embedding": vec_str,
+                "embedding_text": f"Embed Movie {i} ({2000 + i}). {genres_list[i]}.",
+            },
+        )
+
+    db.flush()
     return ids

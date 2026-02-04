@@ -151,3 +151,43 @@ export interface FlagResponse {
   flag_type: FlagType;
   created_at: string;
 }
+
+// Recommendation types
+export interface RecommendRequest {
+  genre?: string;
+  min_year?: number;
+  max_year?: number;
+  min_runtime?: number;
+  max_runtime?: number;
+  min_imdb_rating?: number;
+  min_votes?: number;
+  limit?: number;
+  page?: number;
+}
+
+export interface RecommendedTitle {
+  title_id: number;
+  imdb_tconst: string;
+  primary_title: string;
+  start_year: number | null;
+  runtime_minutes: number | null;
+  genres: string | null;
+  average_rating: number | null;
+  num_votes: number | null;
+  similarity_score: number | null;
+}
+
+export interface RecommendResponse {
+  results: RecommendedTitle[];
+  total: number;
+  page: number;
+  limit: number;
+  fallback_mode: boolean;
+}
+
+export interface TasteProfileResponse {
+  has_taste_vector: boolean;
+  num_rated_movies: number;
+  min_required: number;
+  updated_at: string | null;
+}

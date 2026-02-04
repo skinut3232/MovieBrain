@@ -19,6 +19,9 @@ export default function Navbar() {
         <Link to="/history" className="hover:text-amber-300">
           History
         </Link>
+        <Link to="/recommend" className="hover:text-amber-300">
+          Recommend
+        </Link>
         <Link to="/lists" className="hover:text-amber-300">
           Lists
         </Link>

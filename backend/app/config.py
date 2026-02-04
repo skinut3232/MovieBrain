@@ -7,6 +7,12 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    OPENAI_API_KEY: str = ""
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    EMBEDDING_DIMENSIONS: int = 1536
+    RECOMMEND_DEFAULT_LIMIT: int = 20
+    RECOMMEND_MIN_RATED_MOVIES: int = 5
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

@@ -59,12 +59,18 @@ export default function HomePage() {
         Welcome, {activeProfile?.name}
       </h1>
 
-      <div className="mt-6">
+      <div className="mt-6 flex gap-3">
         <Link
           to="/search"
           className="inline-block px-6 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-black font-semibold"
         >
           Search Movies
+        </Link>
+        <Link
+          to="/recommend"
+          className="inline-block px-6 py-3 rounded-lg border border-amber-500 text-amber-400 hover:bg-amber-500/10 font-semibold"
+        >
+          Get Recommendations
         </Link>
       </div>
 
