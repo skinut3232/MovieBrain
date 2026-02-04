@@ -6,6 +6,16 @@ from app.models.catalog import (
     CatalogRating,
     CatalogTitle,
 )
+from app.models.personal import (
+    FlagType,
+    ListItem,
+    ListType,
+    MovieFlag,
+    MovieList,
+    Tag,
+    Watch,
+    WatchTag,
+)
 from app.models.user import Profile, User
 
 __all__ = [
@@ -17,4 +27,12 @@ __all__ = [
     "CatalogAka",
     "User",
     "Profile",
+    "Watch",
+    "Tag",
+    "WatchTag",
+    "MovieList",
+    "ListItem",
+    "ListType",
+    "MovieFlag",
+    "FlagType",
 ]

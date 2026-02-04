@@ -7,7 +7,8 @@ from app.config import settings
 from app.core.dependencies import get_db
 from app.database import Base
 from app.main import app
-from app.models import catalog, user  # noqa: F401 - ensure models registered
+from app.models import catalog, personal, user  # noqa: F401 - ensure models registered
+from app.models.catalog import CatalogTitle
 
 # Use a separate test database
 TEST_DB_URL = settings.DATABASE_URL.rsplit("/", 1)[0] + "/moviebrain_test"
@@ -70,3 +71,56 @@ def client(db):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides[get_db] = override_get_db
+
+
+@pytest.fixture
+def auth_profile(client, db):
+    """Register a user, create a profile, and return (headers, profile_id)."""
+    reg = client.post(
+        "/auth/register",
+        json={"email": "fixture@example.com", "password": "testpass"},
+    )
+    token = reg.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post("/profiles", json={"name": "Test Profile"}, headers=headers)
+    profile_id = resp.json()["id"]
+
+    return headers, profile_id
+
+
+@pytest.fixture
+def seed_movie(db):
+    """Insert a catalog title for testing and return its id."""
+    title = CatalogTitle(
+        imdb_tconst="tt0000001",
+        primary_title="Test Movie",
+        original_title="Test Movie",
+        title_type="movie",
+        start_year=2020,
+        runtime_minutes=120,
+        genres="Drama",
+    )
+    db.add(title)
+    db.flush()
+    return title.id
+
+
+@pytest.fixture
+def seed_movies(db):
+    """Insert multiple catalog titles for testing. Returns list of ids."""
+    ids = []
+    for i in range(3):
+        title = CatalogTitle(
+            imdb_tconst=f"tt000000{i + 1}",
+            primary_title=f"Test Movie {i + 1}",
+            original_title=f"Test Movie {i + 1}",
+            title_type="movie",
+            start_year=2020 + i,
+            runtime_minutes=90 + i * 10,
+            genres="Drama",
+        )
+        db.add(title)
+        db.flush()
+        ids.append(title.id)
+    return ids
