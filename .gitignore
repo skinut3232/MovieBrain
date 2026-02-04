@@ -1,0 +1,40 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+frontend/build/
+frontend/dist/
+
+# IMDb data files
+*.tsv
+*.tsv.gz
+
+# OS
+.DS_Store
+Thumbs.db

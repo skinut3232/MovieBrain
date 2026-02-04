@@ -1,0 +1,113 @@
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
+from sqlalchemy.orm import relationship
+
+from app.database import Base
+
+
+class CatalogTitle(Base):
+    __tablename__ = "catalog_titles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    imdb_tconst = Column(String(20), unique=True, nullable=False, index=True)
+    title_type = Column(String(50))
+    primary_title = Column(String(500), nullable=False)
+    original_title = Column(String(500))
+    start_year = Column(Integer)
+    end_year = Column(Integer)
+    runtime_minutes = Column(Integer)
+    genres = Column(String(200))
+    title_search_text = Column(Text)
+    ts_vector = Column(TSVECTOR)
+
+    rating = relationship("CatalogRating", back_populates="title", uselist=False)
+    principals = relationship("CatalogPrincipal", back_populates="title")
+    crew = relationship("CatalogCrew", back_populates="title", uselist=False)
+    akas = relationship("CatalogAka", back_populates="title")
+
+    __table_args__ = (
+        Index("ix_catalog_titles_ts_vector", "ts_vector", postgresql_using="gin"),
+        Index("ix_catalog_titles_start_year", "start_year"),
+        Index("ix_catalog_titles_genres", "genres"),
+    )
+
+
+class CatalogRating(Base):
+    __tablename__ = "catalog_ratings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title_id = Column(Integer, ForeignKey("catalog_titles.id"), nullable=False, unique=True)
+    average_rating = Column(Float)
+    num_votes = Column(Integer)
+
+    title = relationship("CatalogTitle", back_populates="rating")
+
+
+class CatalogPerson(Base):
+    __tablename__ = "catalog_people"
+
+    id = Column(Integer, primary_key=True, index=True)
+    imdb_nconst = Column(String(20), unique=True, nullable=False, index=True)
+    primary_name = Column(String(300), nullable=False)
+    birth_year = Column(Integer)
+    death_year = Column(Integer)
+
+    principals = relationship("CatalogPrincipal", back_populates="person")
+
+
+class CatalogPrincipal(Base):
+    __tablename__ = "catalog_principals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title_id = Column(Integer, ForeignKey("catalog_titles.id"), nullable=False)
+    person_id = Column(Integer, ForeignKey("catalog_people.id"), nullable=False)
+    ordering = Column(Integer)
+    category = Column(String(100))
+    job = Column(Text)
+    characters = Column(Text)
+
+    title = relationship("CatalogTitle", back_populates="principals")
+    person = relationship("CatalogPerson", back_populates="principals")
+
+    __table_args__ = (
+        Index("ix_catalog_principals_title_id", "title_id"),
+        Index("ix_catalog_principals_person_id", "person_id"),
+    )
+
+
+class CatalogCrew(Base):
+    __tablename__ = "catalog_crew"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title_id = Column(Integer, ForeignKey("catalog_titles.id"), nullable=False, unique=True)
+    director_nconsts = Column(ARRAY(String))
+    writer_nconsts = Column(ARRAY(String))
+
+    title = relationship("CatalogTitle", back_populates="crew")
+
+
+class CatalogAka(Base):
+    __tablename__ = "catalog_akas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title_id = Column(Integer, ForeignKey("catalog_titles.id"), nullable=False)
+    ordering = Column(Integer)
+    localized_title = Column(String(1000))
+    region = Column(String(10))
+    language = Column(String(10))
+    is_original = Column(Boolean, default=False)
+
+    title = relationship("CatalogTitle", back_populates="akas")
+
+    __table_args__ = (
+        Index("ix_catalog_akas_title_id", "title_id"),
+    )
