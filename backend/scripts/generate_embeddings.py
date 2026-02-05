@@ -24,8 +24,20 @@ MODEL_ID = settings.EMBEDDING_MODEL
 DIMENSIONS = settings.EMBEDDING_DIMENSIONS
 
 
-def get_movies_needing_embeddings(db, limit: int = 10000) -> list[dict]:
-    """Get movies with ratings that don't yet have embeddings."""
+def count_movies_needing_embeddings(db) -> int:
+    """Count movies with ratings that don't yet have embeddings."""
+    query = text("""
+        SELECT COUNT(*)
+        FROM catalog_titles ct
+        JOIN catalog_ratings cr ON cr.title_id = ct.id
+        LEFT JOIN movie_embeddings me ON me.title_id = ct.id AND me.model_id = :model_id
+        WHERE me.title_id IS NULL
+    """)
+    return db.execute(query, {"model_id": MODEL_ID}).scalar()
+
+
+def get_movies_needing_embeddings(db, limit: int = 500) -> list[dict]:
+    """Get a batch of movies with ratings that don't yet have embeddings."""
     query = text("""
         SELECT
             ct.id AS title_id,
@@ -126,10 +138,9 @@ def main():
 
     try:
         print(f"Model: {MODEL_ID}, Dimensions: {DIMENSIONS}")
-        print("Querying movies needing embeddings...")
+        print("Counting movies needing embeddings...")
 
-        movies = get_movies_needing_embeddings(db)
-        total = len(movies)
+        total = count_movies_needing_embeddings(db)
         print(f"Found {total} movies needing embeddings")
 
         if total == 0:
@@ -137,9 +148,12 @@ def main():
             return
 
         processed = 0
-        for i in range(0, total, BATCH_SIZE):
-            batch = movies[i : i + BATCH_SIZE]
-            texts = [build_embedding_text(m) for m in batch]
+        while True:
+            movies = get_movies_needing_embeddings(db, limit=BATCH_SIZE)
+            if not movies:
+                break
+
+            texts = [build_embedding_text(m) for m in movies]
 
             retries = 0
             while retries < 3:
@@ -156,16 +170,15 @@ def main():
                     time.sleep(wait_time)
 
             rows = [
-                (batch[j]["title_id"], texts[j], embeddings[j])
-                for j in range(len(batch))
+                (movies[j]["title_id"], texts[j], embeddings[j])
+                for j in range(len(movies))
             ]
             upsert_embeddings(db, rows)
-            processed += len(batch)
+            processed += len(movies)
             print(f"  Progress: {processed}/{total} ({processed * 100 // total}%)")
 
             # Rate limiting: brief pause between batches
-            if i + BATCH_SIZE < total:
-                time.sleep(0.5)
+            time.sleep(0.5)
 
         print(f"Done! Generated embeddings for {processed} movies.")
 
