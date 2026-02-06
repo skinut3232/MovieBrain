@@ -6,6 +6,7 @@ import ListDetailPage from './pages/ListDetailPage';
 import ListsPageWrapper from './pages/ListsPageWrapper';
 import LoginPage from './pages/LoginPage';
 import MovieDetailPage from './pages/MovieDetailPage';
+import OnboardingPage from './pages/OnboardingPage';
 import RegisterPage from './pages/RegisterPage';
 import SearchPage from './pages/SearchPage';
 import RecommendPage from './pages/RecommendPage';
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/recommend" element={<RecommendPage />} />
         <Route path="/lists" element={<ListsPageWrapper />} />
         <Route path="/lists/:listId" element={<ListDetailPage />} />
+        <Route path="/onboard" element={<OnboardingPage />} />
       </Route>
     </Routes>
   );

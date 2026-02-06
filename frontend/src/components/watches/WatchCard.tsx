@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { WatchResponse } from '../../types';
+import MoviePoster from '../common/MoviePoster';
 
 interface Props {
   watch: WatchResponse;
@@ -8,8 +9,13 @@ interface Props {
 
 export default function WatchCard({ watch, onDelete }: Props) {
   return (
-    <div className="bg-gray-800 rounded-lg p-4 flex items-start justify-between">
-      <div className="flex-1">
+    <div className="bg-gray-800 rounded-lg p-4 flex items-start gap-4">
+      <MoviePoster
+        posterUrl={watch.title.poster_url}
+        title={watch.title.primary_title}
+        size="sm"
+      />
+      <div className="flex-1 min-w-0">
         <Link
           to={`/movie/${watch.title_id}`}
           className="font-semibold text-white hover:text-amber-400"
@@ -45,7 +51,7 @@ export default function WatchCard({ watch, onDelete }: Props) {
       </div>
       <button
         onClick={() => onDelete(watch.title_id)}
-        className="text-gray-500 hover:text-red-400 ml-4 text-sm"
+        className="text-gray-500 hover:text-red-400 ml-2 text-sm shrink-0"
       >
         Delete
       </button>

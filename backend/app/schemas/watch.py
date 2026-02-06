@@ -32,6 +32,7 @@ class TitleBrief(BaseModel):
     primary_title: str
     start_year: int | None
     genres: str | None
+    poster_url: str | None = None
 
     model_config = {"from_attributes": True}
 

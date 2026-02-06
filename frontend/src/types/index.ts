@@ -6,6 +6,7 @@ export interface TokenResponse {
 export interface Profile {
   id: number;
   name: string;
+  onboarding_completed: boolean;
   created_at: string;
 }
 
@@ -14,6 +15,7 @@ export interface TitleBrief {
   primary_title: string;
   start_year: number | null;
   genres: string | null;
+  poster_url: string | null;
 }
 
 export interface TitleSearchResult {
@@ -25,6 +27,7 @@ export interface TitleSearchResult {
   genres: string | null;
   average_rating: number | null;
   num_votes: number | null;
+  poster_url: string | null;
 }
 
 export interface PaginatedSearchResponse {
@@ -75,6 +78,7 @@ export interface TitleDetailResponse {
   end_year: number | null;
   runtime_minutes: number | null;
   genres: string | null;
+  poster_url: string | null;
   rating: RatingResponse | null;
   principals: PrincipalResponse[];
   crew: CrewResponse | null;
@@ -175,6 +179,7 @@ export interface RecommendedTitle {
   average_rating: number | null;
   num_votes: number | null;
   similarity_score: number | null;
+  poster_url: string | null;
 }
 
 export interface RecommendResponse {
@@ -190,4 +195,20 @@ export interface TasteProfileResponse {
   num_rated_movies: number;
   min_required: number;
   updated_at: string | null;
+}
+
+// Onboarding types
+export interface OnboardingMovie {
+  title_id: number;
+  primary_title: string;
+  start_year: number | null;
+  genres: string | null;
+  average_rating: number | null;
+  num_votes: number | null;
+  poster_url: string | null;
+}
+
+export interface OnboardingMoviesResponse {
+  movies: OnboardingMovie[];
+  remaining: number;
 }

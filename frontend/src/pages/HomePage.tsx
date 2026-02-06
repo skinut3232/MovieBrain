@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getWatchHistory } from '../api/watches';
 import { useProfile } from '../context/ProfileContext';
 import type { WatchResponse } from '../types';
@@ -7,6 +7,7 @@ import WatchCard from '../components/watches/WatchCard';
 
 export default function HomePage() {
   const { activeProfile, profiles, createProfile } = useProfile();
+  const navigate = useNavigate();
   const [recentWatches, setRecentWatches] = useState<WatchResponse[]>([]);
   const [newProfileName, setNewProfileName] = useState('');
 
@@ -28,8 +29,12 @@ export default function HomePage() {
           onSubmit={async (e) => {
             e.preventDefault();
             if (newProfileName.trim()) {
-              await createProfile(newProfileName.trim());
+              const profile = await createProfile(newProfileName.trim());
               setNewProfileName('');
+              // Redirect new profiles to onboarding
+              if (profile && !profile.onboarding_completed) {
+                navigate('/onboard');
+              }
             }
           }}
           className="flex gap-2"
@@ -73,6 +78,21 @@ export default function HomePage() {
           Get Recommendations
         </Link>
       </div>
+
+      {/* Onboarding prompt for profiles that haven't completed it */}
+      {activeProfile && !activeProfile.onboarding_completed && (
+        <div className="mt-6 p-4 rounded-lg border border-amber-500/50 bg-amber-500/10">
+          <p className="text-amber-300 mb-2">
+            Rate some movies to get personalized recommendations!
+          </p>
+          <Link
+            to="/onboard"
+            className="inline-block px-4 py-2 rounded bg-amber-500 hover:bg-amber-600 text-black font-semibold text-sm"
+          >
+            Start Quick Rating
+          </Link>
+        </div>
+      )}
 
       {recentWatches.length > 0 && (
         <div className="mt-8">

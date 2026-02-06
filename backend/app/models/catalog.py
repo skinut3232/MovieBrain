@@ -26,6 +26,7 @@ class CatalogTitle(Base):
     end_year = Column(Integer)
     runtime_minutes = Column(Integer)
     genres = Column(String(200))
+    poster_path = Column(String(255))
     title_search_text = Column(Text)
     ts_vector = Column(TSVECTOR)
 
@@ -33,6 +34,13 @@ class CatalogTitle(Base):
     principals = relationship("CatalogPrincipal", back_populates="title")
     crew = relationship("CatalogCrew", back_populates="title", uselist=False)
     akas = relationship("CatalogAka", back_populates="title")
+
+    @property
+    def poster_url(self) -> str | None:
+        if not self.poster_path:
+            return None
+        from app.config import settings
+        return f"{settings.TMDB_IMAGE_BASE_URL}w300{self.poster_path}"
 
     __table_args__ = (
         Index("ix_catalog_titles_ts_vector", "ts_vector", postgresql_using="gin"),

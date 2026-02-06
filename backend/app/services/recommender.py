@@ -22,6 +22,7 @@ class RecommendationResult:
     average_rating: float | None
     num_votes: int | None
     similarity_score: float | None
+    poster_path: str | None = None
 
 
 @dataclass
@@ -229,7 +230,8 @@ def get_recommendations(
                 ct.genres,
                 cr.average_rating,
                 cr.num_votes,
-                1 - (me.embedding <=> CAST(:taste_vector AS vector)) AS similarity_score
+                1 - (me.embedding <=> CAST(:taste_vector AS vector)) AS similarity_score,
+                ct.poster_path
             FROM movie_embeddings me
             JOIN catalog_titles ct ON ct.id = me.title_id
             JOIN catalog_ratings cr ON cr.title_id = ct.id
@@ -257,7 +259,8 @@ def get_recommendations(
                 ct.genres,
                 cr.average_rating,
                 cr.num_votes,
-                NULL AS similarity_score
+                NULL AS similarity_score,
+                ct.poster_path
             FROM catalog_titles ct
             JOIN catalog_ratings cr ON cr.title_id = ct.id
             WHERE {where_clause}
@@ -278,6 +281,7 @@ def get_recommendations(
             average_rating=row[6],
             num_votes=row[7],
             similarity_score=round(row[8], 4) if row[8] is not None else None,
+            poster_path=row[9],
         )
         for row in rows
     ]

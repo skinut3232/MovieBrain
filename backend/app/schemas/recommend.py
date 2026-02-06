@@ -27,6 +27,7 @@ class RecommendedTitle(BaseModel):
     average_rating: float | None
     num_votes: int | None
     similarity_score: float | None
+    poster_url: str | None = None
 
 
 class RecommendResponse(BaseModel):

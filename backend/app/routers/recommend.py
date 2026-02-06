@@ -15,6 +15,7 @@ from app.services.recommender import (
     get_recommendations,
     _get_existing_taste,
 )
+from app.services.tmdb import get_poster_url
 
 router = APIRouter(prefix="/profiles/{profile_id}", tags=["recommend"])
 
@@ -53,6 +54,7 @@ def recommend(
                 average_rating=r.average_rating,
                 num_votes=r.num_votes,
                 similarity_score=r.similarity_score,
+                poster_url=get_poster_url(r.poster_path),
             )
             for r in result.results
         ],

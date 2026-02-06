@@ -10,6 +10,7 @@ class TitleSearchResult(BaseModel):
     genres: str | None
     average_rating: float | None
     num_votes: int | None
+    poster_url: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -72,6 +73,7 @@ class TitleDetailResponse(BaseModel):
     end_year: int | None
     runtime_minutes: int | None
     genres: str | None
+    poster_url: str | None = None
     rating: RatingResponse | None
     principals: list[PrincipalResponse]
     crew: CrewResponse | None

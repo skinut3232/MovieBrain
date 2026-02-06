@@ -17,7 +17,7 @@ from app.models.personal import (
     WatchTag,
 )
 from app.models.recommender import MovieEmbedding, ProfileTaste
-from app.models.user import Profile, User
+from app.models.user import OnboardingMovie, Profile, User
 
 __all__ = [
     "CatalogTitle",
@@ -38,4 +38,5 @@ __all__ = [
     "FlagType",
     "MovieEmbedding",
     "ProfileTaste",
+    "OnboardingMovie",
 ]

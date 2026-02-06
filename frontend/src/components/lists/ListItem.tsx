@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { ListItemResponse } from '../../types';
+import MoviePoster from '../common/MoviePoster';
 
 interface Props {
   item: ListItemResponse;
@@ -13,6 +14,11 @@ export default function ListItem({ item, onRemove }: Props) {
         <span className="text-gray-500 text-sm w-6 text-right">
           {item.position}.
         </span>
+        <MoviePoster
+          posterUrl={item.title.poster_url}
+          title={item.title.primary_title}
+          size="sm"
+        />
         <div>
           <Link
             to={`/movie/${item.title_id}`}

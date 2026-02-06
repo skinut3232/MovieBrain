@@ -14,6 +14,7 @@ class ProfileUpdate(BaseModel):
 class ProfileResponse(BaseModel):
     id: int
     name: str
+    onboarding_completed: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

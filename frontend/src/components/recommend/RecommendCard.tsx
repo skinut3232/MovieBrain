@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { RecommendedTitle } from '../../types';
+import MoviePoster from '../common/MoviePoster';
 
 interface RecommendCardProps {
   movie: RecommendedTitle;
@@ -11,7 +12,8 @@ export default function RecommendCard({ movie }: RecommendCardProps) {
       to={`/movie/${movie.title_id}`}
       className="block bg-gray-900 border border-gray-700 rounded-lg p-4 hover:border-amber-500 transition-colors"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-4">
+        <MoviePoster posterUrl={movie.poster_url} title={movie.primary_title} size="sm" />
         <div className="flex-1 min-w-0">
           <h3 className="text-white font-semibold truncate">
             {movie.primary_title}

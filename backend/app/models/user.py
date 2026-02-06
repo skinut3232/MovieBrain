@@ -4,6 +4,16 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 
+class OnboardingMovie(Base):
+    __tablename__ = "onboarding_movies"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title_id = Column(Integer, ForeignKey("catalog_titles.id"), nullable=False, unique=True)
+    display_order = Column(Integer, nullable=False)
+
+    title = relationship("CatalogTitle")
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -22,6 +32,7 @@ class Profile(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(100), nullable=False)
+    onboarding_completed = Column(Boolean, server_default="false", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="profiles")

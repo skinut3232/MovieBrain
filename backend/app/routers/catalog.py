@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_db
 from app.schemas.catalog import PaginatedSearchResponse, TitleDetailResponse, TitleSearchResult
 from app.services.catalog import get_title_detail, search_titles
+from app.services.tmdb import get_or_fetch_poster_path, get_poster_url
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
 
@@ -31,6 +32,7 @@ def search(
                 genres=title.genres,
                 average_rating=rating.average_rating if rating else None,
                 num_votes=rating.num_votes if rating else None,
+                poster_url=get_poster_url(title.poster_path),
             )
         )
 
@@ -42,4 +44,23 @@ def get_title(title_id: int, db: Session = Depends(get_db)):
     title = get_title_detail(db, title_id)
     if not title:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Title not found")
-    return title
+
+    # Lazy-fill poster if needed
+    poster_path = get_or_fetch_poster_path(db, title)
+
+    return TitleDetailResponse(
+        id=title.id,
+        imdb_tconst=title.imdb_tconst,
+        title_type=title.title_type,
+        primary_title=title.primary_title,
+        original_title=title.original_title,
+        start_year=title.start_year,
+        end_year=title.end_year,
+        runtime_minutes=title.runtime_minutes,
+        genres=title.genres,
+        poster_url=get_poster_url(poster_path),
+        rating=title.rating,
+        principals=title.principals,
+        crew=title.crew,
+        akas=title.akas,
+    )

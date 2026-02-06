@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getRecommendations, getTasteProfile, recomputeTaste } from '../api/recommend';
 import RecommendCard from '../components/recommend/RecommendCard';
 import RecommendFilters from '../components/recommend/RecommendFilters';
@@ -82,8 +83,30 @@ export default function RecommendPage() {
     <div>
       <h1 className="text-2xl font-bold text-white mb-4">Recommendations</h1>
 
+      {/* Onboarding CTA banner when too few ratings */}
+      {taste && taste.num_rated_movies < taste.min_required && (
+        <div className="mb-4 p-4 rounded-lg border border-amber-500/50 bg-amber-500/10">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-amber-300 font-medium">
+                Rate at least {taste.min_required} movies for personalized recommendations
+              </p>
+              <p className="text-amber-300/70 text-sm mt-1">
+                You've rated {taste.num_rated_movies} so far. Quick-rate popular movies to get started!
+              </p>
+            </div>
+            <Link
+              to="/onboard"
+              className="shrink-0 ml-4 px-4 py-2 rounded bg-amber-500 hover:bg-amber-600 text-black font-semibold text-sm"
+            >
+              Quick Rate
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Taste status banner */}
-      {taste && (
+      {taste && taste.num_rated_movies >= taste.min_required && (
         <div className={`mb-4 p-4 rounded-lg border ${
           taste.has_taste_vector
             ? 'bg-green-900/20 border-green-700 text-green-300'
