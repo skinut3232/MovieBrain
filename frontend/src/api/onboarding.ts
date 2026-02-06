@@ -12,6 +12,13 @@ export async function getOnboardingMovies(
   return data;
 }
 
+export async function skipOnboardingMovie(
+  profileId: number,
+  titleId: number
+): Promise<void> {
+  await api.post(`/profiles/${profileId}/onboarding-skip`, { title_id: titleId });
+}
+
 export async function completeOnboarding(
   profileId: number
 ): Promise<void> {

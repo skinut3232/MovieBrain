@@ -8,6 +8,10 @@ def search_titles(
     db: Session,
     query: str,
     year: int | None = None,
+    genre: str | None = None,
+    min_rating: float | None = None,
+    min_year: int | None = None,
+    max_year: int | None = None,
     page: int = 1,
     limit: int = 20,
 ) -> tuple[list, int]:
@@ -19,8 +23,20 @@ def search_titles(
         .filter(CatalogTitle.ts_vector.op("@@")(ts_query))
     )
 
+    # Apply exact year filter (takes precedence over min/max year)
     if year is not None:
         base = base.filter(CatalogTitle.start_year == year)
+    else:
+        if min_year is not None:
+            base = base.filter(CatalogTitle.start_year >= min_year)
+        if max_year is not None:
+            base = base.filter(CatalogTitle.start_year <= max_year)
+
+    if genre is not None:
+        base = base.filter(CatalogTitle.genres.ilike(f"%{genre}%"))
+
+    if min_rating is not None:
+        base = base.filter(CatalogRating.average_rating >= min_rating)
 
     total = base.count()
 

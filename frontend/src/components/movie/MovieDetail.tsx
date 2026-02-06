@@ -1,6 +1,9 @@
+import { Link } from 'react-router-dom';
 import type { TitleDetailResponse } from '../../types';
 import MoviePoster from '../common/MoviePoster';
 import MovieActions from './MovieActions';
+import SimilarMovies from './SimilarMovies';
+import TrailerEmbed from './TrailerEmbed';
 
 interface Props {
   title: TitleDetailResponse;
@@ -48,6 +51,15 @@ export default function MovieDetail({ title }: Props) {
         </div>
       </div>
 
+      {/* Plot Summary */}
+      {title.overview && (
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-gray-200 mb-2">Plot</h2>
+          <p className="text-gray-300 leading-relaxed">{title.overview}</p>
+        </div>
+      )}
+
+      {/* Directors */}
       {directors.length > 0 && (
         <div className="mt-6">
           <h2 className="text-lg font-semibold text-gray-200 mb-2">
@@ -55,24 +67,31 @@ export default function MovieDetail({ title }: Props) {
           </h2>
           <div className="flex flex-wrap gap-2">
             {directors.map((d, i) => (
-              <span
+              <Link
                 key={i}
-                className="bg-gray-800 px-3 py-1 rounded text-sm text-gray-300"
+                to={`/person/${d.person.id}`}
+                className="bg-gray-800 px-3 py-1 rounded text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition"
               >
                 {d.person.primary_name}
-              </span>
+              </Link>
             ))}
           </div>
         </div>
       )}
 
+      {/* Cast */}
       {cast.length > 0 && (
         <div className="mt-4">
           <h2 className="text-lg font-semibold text-gray-200 mb-2">Cast</h2>
           <div className="grid gap-2">
             {cast.map((p, i) => (
               <div key={i} className="text-sm text-gray-300">
-                <span className="font-medium">{p.person.primary_name}</span>
+                <Link
+                  to={`/person/${p.person.id}`}
+                  className="font-medium hover:text-amber-400 transition"
+                >
+                  {p.person.primary_name}
+                </Link>
                 {p.characters && (
                   <span className="text-gray-500 ml-2">
                     as {p.characters.replace(/[\[\]"]/g, '')}
@@ -83,6 +102,14 @@ export default function MovieDetail({ title }: Props) {
           </div>
         </div>
       )}
+
+      {/* Trailer */}
+      {title.trailer_key && (
+        <TrailerEmbed trailerKey={title.trailer_key} title={title.primary_title} />
+      )}
+
+      {/* Similar Movies */}
+      <SimilarMovies titleId={title.id} />
     </div>
   );
 }

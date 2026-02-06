@@ -1,12 +1,15 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import { useAuth } from './context/AuthContext';
+import CollectionPage from './pages/CollectionPage';
+import ExplorePage from './pages/ExplorePage';
 import HomePage from './pages/HomePage';
 import ListDetailPage from './pages/ListDetailPage';
 import ListsPageWrapper from './pages/ListsPageWrapper';
 import LoginPage from './pages/LoginPage';
 import MovieDetailPage from './pages/MovieDetailPage';
 import OnboardingPage from './pages/OnboardingPage';
+import PersonPage from './pages/PersonPage';
 import RegisterPage from './pages/RegisterPage';
 import SearchPage from './pages/SearchPage';
 import RecommendPage from './pages/RecommendPage';
@@ -32,7 +35,10 @@ export default function App() {
       >
         <Route path="/" element={<HomePage />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/explore" element={<ExplorePage />} />
         <Route path="/movie/:titleId" element={<MovieDetailPage />} />
+        <Route path="/person/:personId" element={<PersonPage />} />
+        <Route path="/collections/:collectionId" element={<CollectionPage />} />
         <Route path="/history" element={<WatchHistoryPage />} />
         <Route path="/recommend" element={<RecommendPage />} />
         <Route path="/lists" element={<ListsPageWrapper />} />

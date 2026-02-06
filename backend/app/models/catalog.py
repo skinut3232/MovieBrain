@@ -27,6 +27,8 @@ class CatalogTitle(Base):
     runtime_minutes = Column(Integer)
     genres = Column(String(200))
     poster_path = Column(String(255))
+    overview = Column(Text)
+    trailer_key = Column(String(20))
     title_search_text = Column(Text)
     ts_vector = Column(TSVECTOR)
 

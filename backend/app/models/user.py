@@ -14,6 +14,18 @@ class OnboardingMovie(Base):
     title = relationship("CatalogTitle")
 
 
+class SkippedOnboardingMovie(Base):
+    __tablename__ = "skipped_onboarding_movies"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    profile_id = Column(Integer, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False)
+    title_id = Column(Integer, ForeignKey("catalog_titles.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    profile = relationship("Profile")
+    title = relationship("CatalogTitle")
+
+
 class User(Base):
     __tablename__ = "users"
 

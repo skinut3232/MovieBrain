@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { completeOnboarding, getOnboardingMovies } from '../api/onboarding';
+import { completeOnboarding, getOnboardingMovies, skipOnboardingMovie } from '../api/onboarding';
 import { logWatch } from '../api/watches';
 import OnboardingCard from '../components/onboarding/OnboardingCard';
 import { useProfile } from '../context/ProfileContext';
@@ -12,7 +12,6 @@ export default function OnboardingPage() {
   const [movies, setMovies] = useState<OnboardingMovie[]>([]);
   const [remaining, setRemaining] = useState(0);
   const [ratedCount, setRatedCount] = useState(0);
-  const [skippedIds, setSkippedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
 
   const profileId = activeProfile?.id;
@@ -42,15 +41,25 @@ export default function OnboardingPage() {
       rating_1_10: rating,
     });
     setRatedCount((prev) => prev + 1);
+    // Remove the rated movie from the list immediately
+    setMovies((prev) => prev.filter((m) => m.title_id !== titleId));
+    setRemaining((prev) => Math.max(0, prev - 1));
   };
 
-  const handleSkip = (titleId: number) => {
-    setSkippedIds((prev) => new Set(prev).add(titleId));
+  const handleSkip = async (titleId: number) => {
+    if (!profileId) return;
+    try {
+      await skipOnboardingMovie(profileId, titleId);
+      // Remove from local state after persisting
+      setMovies((prev) => prev.filter((m) => m.title_id !== titleId));
+      setRemaining((prev) => Math.max(0, prev - 1));
+    } catch {
+      // ignore
+    }
   };
 
   const handleLoadMore = async () => {
     if (!profileId) return;
-    setSkippedIds(new Set());
     await loadMovies();
   };
 
@@ -61,9 +70,7 @@ export default function OnboardingPage() {
     navigate('/recommend');
   };
 
-  const visibleMovies = movies.filter(
-    (m) => !skippedIds.has(m.title_id)
-  );
+  const visibleMovies = movies;
 
   const MIN_RATINGS = 5;
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class OnboardingMovieResponse(BaseModel):
@@ -16,3 +16,7 @@ class OnboardingMovieResponse(BaseModel):
 class OnboardingMoviesResponse(BaseModel):
     movies: list[OnboardingMovieResponse]
     remaining: int
+
+
+class OnboardingSkipRequest(BaseModel):
+    title_id: int = Field(..., gt=0)

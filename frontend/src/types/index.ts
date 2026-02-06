@@ -79,6 +79,8 @@ export interface TitleDetailResponse {
   runtime_minutes: number | null;
   genres: string | null;
   poster_url: string | null;
+  overview: string | null;
+  trailer_key: string | null;
   rating: RatingResponse | null;
   principals: PrincipalResponse[];
   crew: CrewResponse | null;
@@ -211,4 +213,96 @@ export interface OnboardingMovie {
 export interface OnboardingMoviesResponse {
   movies: OnboardingMovie[];
   remaining: number;
+}
+
+// Browse/Discovery types
+export type SortOption = 'popularity' | 'rating' | 'year_desc' | 'year_asc';
+
+export interface BrowseTitle {
+  id: number;
+  imdb_tconst: string;
+  primary_title: string;
+  start_year: number | null;
+  runtime_minutes: number | null;
+  genres: string | null;
+  average_rating: number | null;
+  num_votes: number | null;
+  poster_url: string | null;
+}
+
+export interface BrowseResponse {
+  results: BrowseTitle[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface SimilarTitle {
+  id: number;
+  imdb_tconst: string;
+  primary_title: string;
+  start_year: number | null;
+  runtime_minutes: number | null;
+  genres: string | null;
+  average_rating: number | null;
+  num_votes: number | null;
+  similarity_score: number;
+  poster_url: string | null;
+}
+
+export interface PersonDetail {
+  id: number;
+  imdb_nconst: string;
+  primary_name: string;
+  birth_year: number | null;
+  death_year: number | null;
+}
+
+export interface FilmographyItem {
+  title_id: number;
+  imdb_tconst: string;
+  primary_title: string;
+  start_year: number | null;
+  genres: string | null;
+  category: string;
+  characters: string | null;
+  average_rating: number | null;
+  num_votes: number | null;
+  poster_url: string | null;
+}
+
+export interface PersonWithFilmography {
+  person: PersonDetail;
+  filmography: FilmographyItem[];
+}
+
+// Collection types
+export interface CollectionBrief {
+  id: number;
+  name: string;
+  description: string | null;
+  collection_type: string;
+}
+
+export interface CollectionTitle {
+  title_id: number;
+  imdb_tconst: string;
+  primary_title: string;
+  start_year: number | null;
+  genres: string | null;
+  average_rating: number | null;
+  num_votes: number | null;
+  poster_url: string | null;
+  position: number | null;
+}
+
+export interface CollectionDetail {
+  id: number;
+  name: string;
+  description: string | null;
+  collection_type: string;
+  results: CollectionTitle[];
+  total: number;
+  page: number;
+  limit: number;
 }

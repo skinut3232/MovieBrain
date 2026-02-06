@@ -1,0 +1,349 @@
+from dataclasses import dataclass
+from typing import Literal
+
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.models.catalog import CatalogPerson, CatalogTitle
+
+MODEL_ID = settings.EMBEDDING_MODEL
+
+
+@dataclass
+class BrowseResult:
+    title_id: int
+    imdb_tconst: str
+    primary_title: str
+    start_year: int | None
+    runtime_minutes: int | None
+    genres: str | None
+    average_rating: float | None
+    num_votes: int | None
+    poster_path: str | None
+
+
+@dataclass
+class SimilarMovieResult:
+    title_id: int
+    imdb_tconst: str
+    primary_title: str
+    start_year: int | None
+    runtime_minutes: int | None
+    genres: str | None
+    average_rating: float | None
+    num_votes: int | None
+    similarity_score: float
+    poster_path: str | None
+
+
+@dataclass
+class PersonFilmography:
+    title_id: int
+    imdb_tconst: str
+    primary_title: str
+    start_year: int | None
+    genres: str | None
+    category: str
+    characters: str | None
+    average_rating: float | None
+    num_votes: int | None
+    poster_path: str | None
+
+
+SortOption = Literal["popularity", "rating", "year_desc", "year_asc"]
+
+
+def browse_catalog(
+    db: Session,
+    genre: str | None = None,
+    min_year: int | None = None,
+    max_year: int | None = None,
+    decade: int | None = None,
+    min_rating: float | None = None,
+    sort_by: SortOption = "popularity",
+    page: int = 1,
+    limit: int = 20,
+) -> tuple[list[BrowseResult], int]:
+    """Browse the catalog with filters and sorting."""
+    offset = (page - 1) * limit
+
+    filters = []
+    params: dict = {"limit": limit, "offset": offset}
+
+    # Apply decade filter (overrides min/max year if provided)
+    if decade is not None:
+        min_year = decade
+        max_year = decade + 9
+
+    if genre:
+        filters.append("ct.genres ILIKE :genre")
+        params["genre"] = f"%{genre}%"
+    if min_year is not None:
+        filters.append("ct.start_year >= :min_year")
+        params["min_year"] = min_year
+    if max_year is not None:
+        filters.append("ct.start_year <= :max_year")
+        params["max_year"] = max_year
+    if min_rating is not None:
+        filters.append("cr.average_rating >= :min_rating")
+        params["min_rating"] = min_rating
+
+    where_clause = " AND ".join(filters) if filters else "TRUE"
+
+    # Determine sort order
+    sort_clauses = {
+        "popularity": "cr.average_rating * LN(cr.num_votes + 1) DESC",
+        "rating": "cr.average_rating DESC NULLS LAST, cr.num_votes DESC",
+        "year_desc": "ct.start_year DESC NULLS LAST, cr.num_votes DESC",
+        "year_asc": "ct.start_year ASC NULLS LAST, cr.num_votes DESC",
+    }
+    order_by = sort_clauses.get(sort_by, sort_clauses["popularity"])
+
+    # Get total count
+    count_sql = text(f"""
+        SELECT COUNT(*)
+        FROM catalog_titles ct
+        JOIN catalog_ratings cr ON cr.title_id = ct.id
+        WHERE {where_clause}
+    """)
+    total = db.execute(count_sql, params).scalar() or 0
+
+    # Get results
+    query_sql = text(f"""
+        SELECT
+            ct.id AS title_id,
+            ct.imdb_tconst,
+            ct.primary_title,
+            ct.start_year,
+            ct.runtime_minutes,
+            ct.genres,
+            cr.average_rating,
+            cr.num_votes,
+            ct.poster_path
+        FROM catalog_titles ct
+        JOIN catalog_ratings cr ON cr.title_id = ct.id
+        WHERE {where_clause}
+        ORDER BY {order_by}
+        LIMIT :limit OFFSET :offset
+    """)
+
+    rows = db.execute(query_sql, params).fetchall()
+
+    results = [
+        BrowseResult(
+            title_id=row[0],
+            imdb_tconst=row[1],
+            primary_title=row[2],
+            start_year=row[3],
+            runtime_minutes=row[4],
+            genres=row[5],
+            average_rating=row[6],
+            num_votes=row[7],
+            poster_path=row[8],
+        )
+        for row in rows
+    ]
+
+    return results, total
+
+
+def get_similar_movies(
+    db: Session,
+    title_id: int,
+    limit: int = 10,
+) -> list[SimilarMovieResult]:
+    """Get similar movies using embedding similarity."""
+    # First check if the source movie has an embedding
+    check_sql = text("""
+        SELECT embedding FROM movie_embeddings
+        WHERE title_id = :title_id AND model_id = :model_id
+    """)
+    result = db.execute(check_sql, {"title_id": title_id, "model_id": MODEL_ID}).fetchone()
+
+    if not result or not result[0]:
+        # No embedding, fall back to same-genre + similar year
+        return _get_similar_by_metadata(db, title_id, limit)
+
+    # Use vector similarity
+    query_sql = text("""
+        SELECT
+            ct.id AS title_id,
+            ct.imdb_tconst,
+            ct.primary_title,
+            ct.start_year,
+            ct.runtime_minutes,
+            ct.genres,
+            cr.average_rating,
+            cr.num_votes,
+            1 - (me.embedding <=> (SELECT embedding FROM movie_embeddings WHERE title_id = :title_id AND model_id = :model_id)) AS similarity_score,
+            ct.poster_path
+        FROM movie_embeddings me
+        JOIN catalog_titles ct ON ct.id = me.title_id
+        JOIN catalog_ratings cr ON cr.title_id = ct.id
+        WHERE me.model_id = :model_id
+          AND me.title_id != :title_id
+        ORDER BY me.embedding <=> (SELECT embedding FROM movie_embeddings WHERE title_id = :title_id AND model_id = :model_id) ASC
+        LIMIT :limit
+    """)
+
+    rows = db.execute(query_sql, {"title_id": title_id, "model_id": MODEL_ID, "limit": limit}).fetchall()
+
+    return [
+        SimilarMovieResult(
+            title_id=row[0],
+            imdb_tconst=row[1],
+            primary_title=row[2],
+            start_year=row[3],
+            runtime_minutes=row[4],
+            genres=row[5],
+            average_rating=row[6],
+            num_votes=row[7],
+            similarity_score=round(row[8], 4) if row[8] else 0.0,
+            poster_path=row[9],
+        )
+        for row in rows
+    ]
+
+
+def _get_similar_by_metadata(
+    db: Session,
+    title_id: int,
+    limit: int,
+) -> list[SimilarMovieResult]:
+    """Fallback: find similar movies by genre and year when no embedding exists."""
+    # Get source movie's metadata
+    source = db.query(CatalogTitle).filter(CatalogTitle.id == title_id).first()
+    if not source:
+        return []
+
+    filters = ["ct.id != :title_id"]
+    params: dict = {"title_id": title_id, "limit": limit}
+
+    # Match primary genre if available
+    if source.genres:
+        primary_genre = source.genres.split(",")[0].strip()
+        filters.append("ct.genres ILIKE :genre")
+        params["genre"] = f"%{primary_genre}%"
+
+    # Similar year range (+/- 10 years)
+    if source.start_year:
+        filters.append("ct.start_year BETWEEN :min_year AND :max_year")
+        params["min_year"] = source.start_year - 10
+        params["max_year"] = source.start_year + 10
+
+    where_clause = " AND ".join(filters)
+
+    query_sql = text(f"""
+        SELECT
+            ct.id AS title_id,
+            ct.imdb_tconst,
+            ct.primary_title,
+            ct.start_year,
+            ct.runtime_minutes,
+            ct.genres,
+            cr.average_rating,
+            cr.num_votes,
+            0.0 AS similarity_score,
+            ct.poster_path
+        FROM catalog_titles ct
+        JOIN catalog_ratings cr ON cr.title_id = ct.id
+        WHERE {where_clause}
+        ORDER BY cr.average_rating * LN(cr.num_votes + 1) DESC
+        LIMIT :limit
+    """)
+
+    rows = db.execute(query_sql, params).fetchall()
+
+    return [
+        SimilarMovieResult(
+            title_id=row[0],
+            imdb_tconst=row[1],
+            primary_title=row[2],
+            start_year=row[3],
+            runtime_minutes=row[4],
+            genres=row[5],
+            average_rating=row[6],
+            num_votes=row[7],
+            similarity_score=0.0,  # No similarity score for metadata fallback
+            poster_path=row[9],
+        )
+        for row in rows
+    ]
+
+
+def get_person_by_id(db: Session, person_id: int) -> CatalogPerson | None:
+    """Get a person by their internal ID."""
+    return db.query(CatalogPerson).filter(CatalogPerson.id == person_id).first()
+
+
+def get_person_filmography(
+    db: Session,
+    person_id: int,
+) -> list[PersonFilmography]:
+    """Get a person's filmography with all their movie credits."""
+    query_sql = text("""
+        SELECT
+            ct.id AS title_id,
+            ct.imdb_tconst,
+            ct.primary_title,
+            ct.start_year,
+            ct.genres,
+            cp.category,
+            cp.characters,
+            cr.average_rating,
+            cr.num_votes,
+            ct.poster_path
+        FROM catalog_principals cp
+        JOIN catalog_titles ct ON ct.id = cp.title_id
+        LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
+        WHERE cp.person_id = :person_id
+        ORDER BY ct.start_year DESC NULLS LAST, cr.num_votes DESC NULLS LAST
+    """)
+
+    rows = db.execute(query_sql, {"person_id": person_id}).fetchall()
+
+    return [
+        PersonFilmography(
+            title_id=row[0],
+            imdb_tconst=row[1],
+            primary_title=row[2],
+            start_year=row[3],
+            genres=row[4],
+            category=row[5],
+            characters=row[6],
+            average_rating=row[7],
+            num_votes=row[8],
+            poster_path=row[9],
+        )
+        for row in rows
+    ]
+
+
+# Predefined genre list for browsing
+GENRES = [
+    "Action",
+    "Adventure",
+    "Animation",
+    "Biography",
+    "Comedy",
+    "Crime",
+    "Documentary",
+    "Drama",
+    "Family",
+    "Fantasy",
+    "Film-Noir",
+    "History",
+    "Horror",
+    "Music",
+    "Musical",
+    "Mystery",
+    "Romance",
+    "Sci-Fi",
+    "Sport",
+    "Thriller",
+    "War",
+    "Western",
+]
+
+DECADES = [1970, 1980, 1990, 2000, 2010, 2020]

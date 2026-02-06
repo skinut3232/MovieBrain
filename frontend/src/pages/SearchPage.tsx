@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { searchTitles } from '../api/catalog';
+import { getGenres, searchTitles } from '../api/catalog';
+import type { SearchFilters } from '../api/catalog';
 import SearchBar from '../components/catalog/SearchBar';
 import SearchResults from '../components/catalog/SearchResults';
 import { useDebounce } from '../hooks/useDebounce';
@@ -7,12 +8,21 @@ import type { PaginatedSearchResponse } from '../types';
 
 export default function SearchPage() {
   const [query, setQuery] = useState('');
-  const [year, setYear] = useState('');
+  const [minYear, setMinYear] = useState('');
+  const [maxYear, setMaxYear] = useState('');
+  const [genre, setGenre] = useState('');
+  const [minRating, setMinRating] = useState('');
   const [page, setPage] = useState(1);
   const [data, setData] = useState<PaginatedSearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [genres, setGenres] = useState<string[]>([]);
 
   const debouncedQuery = useDebounce(query, 400);
+
+  // Load genres on mount
+  useEffect(() => {
+    getGenres().then(setGenres).catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (!debouncedQuery.trim()) {
@@ -20,14 +30,20 @@ export default function SearchPage() {
       return;
     }
     setLoading(true);
-    searchTitles(debouncedQuery, page, year ? Number(year) : undefined)
+    const filters: SearchFilters = {};
+    if (genre) filters.genre = genre;
+    if (minYear) filters.minYear = Number(minYear);
+    if (maxYear) filters.maxYear = Number(maxYear);
+    if (minRating) filters.minRating = Number(minRating);
+
+    searchTitles(debouncedQuery, page, filters)
       .then(setData)
       .finally(() => setLoading(false));
-  }, [debouncedQuery, page, year]);
+  }, [debouncedQuery, page, genre, minYear, maxYear, minRating]);
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedQuery, year]);
+  }, [debouncedQuery, genre, minYear, maxYear, minRating]);
 
   return (
     <div>
@@ -35,8 +51,15 @@ export default function SearchPage() {
       <SearchBar
         query={query}
         onQueryChange={setQuery}
-        year={year}
-        onYearChange={setYear}
+        minYear={minYear}
+        onMinYearChange={setMinYear}
+        maxYear={maxYear}
+        onMaxYearChange={setMaxYear}
+        genre={genre}
+        onGenreChange={setGenre}
+        minRating={minRating}
+        onMinRatingChange={setMinRating}
+        genres={genres}
       />
       {loading && <p className="text-gray-400">Searching...</p>}
       {data && !loading && (

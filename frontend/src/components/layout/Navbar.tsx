@@ -16,6 +16,9 @@ export default function Navbar() {
         <Link to="/search" className="hover:text-amber-300">
           Search
         </Link>
+        <Link to="/explore" className="hover:text-amber-300">
+          Explore
+        </Link>
         <Link to="/history" className="hover:text-amber-300">
           History
         </Link>

@@ -6,6 +6,7 @@ from app.models.catalog import (
     CatalogRating,
     CatalogTitle,
 )
+from app.models.collection import Collection, CollectionItem
 from app.models.personal import (
     FlagType,
     ListItem,
@@ -17,7 +18,7 @@ from app.models.personal import (
     WatchTag,
 )
 from app.models.recommender import MovieEmbedding, ProfileTaste
-from app.models.user import OnboardingMovie, Profile, User
+from app.models.user import OnboardingMovie, Profile, SkippedOnboardingMovie, User
 
 __all__ = [
     "CatalogTitle",
@@ -39,4 +40,7 @@ __all__ = [
     "MovieEmbedding",
     "ProfileTaste",
     "OnboardingMovie",
+    "SkippedOnboardingMovie",
+    "Collection",
+    "CollectionItem",
 ]
