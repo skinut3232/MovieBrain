@@ -13,6 +13,8 @@ from app.schemas.catalog import (
     FeaturedRowsResponse,
     FilmographyItem,
     GenreListResponse,
+    LanguageListResponse,
+    LanguageOption,
     PaginatedSearchResponse,
     PersonDetailResponse,
     PersonWithFilmography,
@@ -28,13 +30,20 @@ from app.services.discovery import (
     FEATURED_GENRES,
     GENRES,
     browse_catalog,
+    get_available_languages,
     get_featured_rows,
     get_person_by_id,
     get_person_filmography,
     get_random_movie,
     get_similar_movies,
 )
-from app.services.tmdb import get_or_fetch_movie_details, get_poster_url, refresh_trending_cache
+from app.services.tmdb import (
+    get_or_fetch_movie_details,
+    get_or_fetch_watch_providers,
+    get_poster_url,
+    refresh_provider_master,
+    refresh_trending_cache,
+)
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
 
@@ -86,10 +95,15 @@ def search(
 @router.get("/browse", response_model=BrowseResponse)
 def browse(
     genre: str | None = Query(None),
+    genres: str | None = Query(None, description="Comma-separated genre list (OR logic)"),
     min_year: int | None = Query(None),
     max_year: int | None = Query(None),
     decade: int | None = Query(None),
     min_rating: float | None = Query(None, ge=0, le=10),
+    min_runtime: int | None = Query(None, ge=0),
+    max_runtime: int | None = Query(None, ge=0),
+    language: str | None = Query(None),
+    provider_ids: str | None = Query(None, description="Comma-separated provider IDs"),
     sort_by: SortOption = Query("popularity"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
@@ -97,13 +111,24 @@ def browse(
     db: Session = Depends(get_db),
 ):
     """Browse the catalog with filters and sorting."""
+    genres_list = [g.strip() for g in genres.split(",") if g.strip()] if genres else None
+    provider_id_list = (
+        [int(p.strip()) for p in provider_ids.split(",") if p.strip()]
+        if provider_ids else None
+    )
+
     results, total = browse_catalog(
         db,
         genre=genre,
+        genres=genres_list,
         min_year=min_year,
         max_year=max_year,
         decade=decade,
         min_rating=min_rating,
+        min_runtime=min_runtime,
+        max_runtime=max_runtime,
+        language=language,
+        provider_ids=provider_id_list,
         sort_by=sort_by,
         page=page,
         limit=limit,
@@ -219,6 +244,18 @@ def get_decades():
     return DecadeListResponse(decades=DECADES)
 
 
+@router.get("/languages", response_model=LanguageListResponse)
+def get_languages(db: Session = Depends(get_db)):
+    """Get list of available languages with movie counts."""
+    languages = get_available_languages(db)
+    return LanguageListResponse(
+        languages=[
+            LanguageOption(code=lang.code, count=lang.count)
+            for lang in languages
+        ]
+    )
+
+
 @router.get("/titles/{title_id}", response_model=TitleDetailResponse)
 def get_title(title_id: int, db: Session = Depends(get_db)):
     title = get_title_detail(db, title_id)
@@ -319,3 +356,78 @@ def refresh_trending(db: Session = Depends(get_db)):
     """Manually refresh the trending cache from TMDB."""
     matched_count = refresh_trending_cache(db)
     return {"status": "refreshed", "matched_movies": matched_count}
+
+
+@router.get("/providers")
+def get_providers(db: Session = Depends(get_db)):
+    """Get streaming providers (flatrate only) with cached movie counts."""
+    from sqlalchemy import func as sa_func
+    from app.models.catalog import ProviderMaster, WatchProvider as WPModel
+
+    # Only return streaming (flatrate) providers that have cached movies
+    results = (
+        db.query(
+            ProviderMaster.provider_id,
+            ProviderMaster.provider_name,
+            ProviderMaster.logo_path,
+            ProviderMaster.display_priority,
+            sa_func.count(sa_func.distinct(WPModel.title_id)).label("movie_count"),
+        )
+        .join(WPModel, WPModel.provider_id == ProviderMaster.provider_id)
+        .filter(WPModel.provider_type == "flatrate")
+        .group_by(
+            ProviderMaster.provider_id,
+            ProviderMaster.provider_name,
+            ProviderMaster.logo_path,
+            ProviderMaster.display_priority,
+        )
+        .order_by(sa_func.count(sa_func.distinct(WPModel.title_id)).desc())
+        .all()
+    )
+
+    return {
+        "providers": [
+            {
+                "provider_id": r[0],
+                "provider_name": r[1],
+                "logo_path": r[2],
+                "display_priority": r[3],
+                "movie_count": r[4],
+            }
+            for r in results
+        ]
+    }
+
+
+@router.get("/titles/{title_id}/providers")
+def get_title_providers(title_id: int, db: Session = Depends(get_db)):
+    """Get streaming providers for a specific movie (lazy-fetches from TMDB if needed)."""
+    from app.services.catalog import get_title_detail as _get_title
+
+    title = _get_title(db, title_id)
+    if not title:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Title not found")
+
+    providers = get_or_fetch_watch_providers(db, title)
+
+    # Only return flatrate (subscription streaming) providers
+    return [
+        {
+            "id": wp.id,
+            "provider_id": wp.provider_id,
+            "provider_name": wp.provider_name,
+            "logo_path": wp.logo_path,
+            "provider_type": wp.provider_type,
+            "region": wp.region,
+            "display_priority": wp.display_priority,
+        }
+        for wp in providers
+        if wp.provider_type == "flatrate"
+    ]
+
+
+@router.post("/providers/refresh")
+def refresh_providers(db: Session = Depends(get_db)):
+    """Manually refresh the provider master list from TMDB."""
+    count = refresh_provider_master(db)
+    return {"status": "refreshed", "providers_updated": count}

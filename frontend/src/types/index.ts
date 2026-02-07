@@ -306,3 +306,72 @@ export interface CollectionDetail {
   page: number;
   limit: number;
 }
+
+// Random movie and featured rows types
+export interface RandomMovie {
+  id: number;
+  imdb_tconst: string;
+  primary_title: string;
+  start_year: number | null;
+  runtime_minutes: number | null;
+  genres: string | null;
+  average_rating: number | null;
+  num_votes: number | null;
+  poster_url: string | null;
+  overview: string | null;
+}
+
+export interface FeaturedRowMovie {
+  id: number;
+  imdb_tconst: string;
+  primary_title: string;
+  start_year: number | null;
+  runtime_minutes: number | null;
+  genres: string | null;
+  average_rating: number | null;
+  num_votes: number | null;
+  poster_url: string | null;
+}
+
+export interface FeaturedRow {
+  id: string;
+  title: string;
+  movies: FeaturedRowMovie[];
+}
+
+export interface FeaturedRowsResponse {
+  rows: FeaturedRow[];
+}
+
+// Language types
+export interface LanguageOption {
+  code: string;
+  count: number;
+}
+
+export interface LanguageListResponse {
+  languages: LanguageOption[];
+}
+
+// Watch provider types
+export interface WatchProvider {
+  id: number;
+  provider_id: number;
+  provider_name: string;
+  logo_path: string | null;
+  provider_type: 'flatrate' | 'rent' | 'buy';
+  region: string;
+  display_priority: number | null;
+}
+
+export interface ProviderMaster {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string | null;
+  display_priority: number | null;
+  movie_count?: number;
+}
+
+export interface ProviderListResponse {
+  providers: ProviderMaster[];
+}

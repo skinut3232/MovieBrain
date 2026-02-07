@@ -33,7 +33,6 @@ export default function OnboardingCard({ movie, onRate, onSkip }: Props) {
       </h3>
       <div className="text-sm text-gray-400 mt-1">
         {movie.start_year && <span>{movie.start_year}</span>}
-        {movie.genres && <span className="ml-2">{movie.genres}</span>}
       </div>
       {movie.average_rating != null && (
         <div className="text-xs text-gray-500 mt-1">

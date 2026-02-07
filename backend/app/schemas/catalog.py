@@ -187,3 +187,49 @@ class CollectionDetailResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+
+# Random movie and featured rows schemas
+class RandomMovieResponse(BaseModel):
+    id: int
+    imdb_tconst: str
+    primary_title: str
+    start_year: int | None
+    runtime_minutes: int | None
+    genres: str | None
+    average_rating: float | None
+    num_votes: int | None
+    poster_url: str | None = None
+    overview: str | None = None
+
+
+class FeaturedRowMovie(BaseModel):
+    id: int
+    imdb_tconst: str
+    primary_title: str
+    start_year: int | None
+    runtime_minutes: int | None
+    genres: str | None
+    average_rating: float | None
+    num_votes: int | None
+    poster_url: str | None = None
+
+
+class FeaturedRow(BaseModel):
+    id: str
+    title: str
+    movies: list[FeaturedRowMovie]
+
+
+class FeaturedRowsResponse(BaseModel):
+    rows: list[FeaturedRow]
+
+
+# Language schemas
+class LanguageOption(BaseModel):
+    code: str
+    count: int
+
+
+class LanguageListResponse(BaseModel):
+    languages: list[LanguageOption]

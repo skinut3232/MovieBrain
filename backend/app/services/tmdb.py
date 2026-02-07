@@ -4,7 +4,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models.catalog import CatalogTitle, TrendingCache
+from app.models.catalog import CatalogTitle, ProviderMaster, TrendingCache, WatchProvider
 
 
 def get_poster_url(poster_path: str | None) -> str | None:
@@ -300,3 +300,126 @@ def get_trending_title_ids(db: Session, limit: int = 20) -> list[int]:
     )
 
     return [r[0] for r in results]
+
+
+# Watch Provider functions
+PROVIDER_CACHE_DAYS = 30
+
+
+def fetch_watch_providers_from_tmdb(tmdb_id: int, region: str = "US") -> dict | None:
+    """Fetch watch providers for a movie from TMDB API.
+
+    Returns dict with flatrate, rent, buy lists of provider dicts.
+    """
+    if not settings.TMDB_API_KEY:
+        return None
+
+    url = f"https://api.themoviedb.org/3/movie/{tmdb_id}/watch/providers"
+    params = {"api_key": settings.TMDB_API_KEY}
+
+    try:
+        resp = httpx.get(url, params=params, timeout=10.0)
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("results", {}).get(region)
+    except Exception:
+        return None
+
+
+def get_or_fetch_watch_providers(
+    db: Session, title: CatalogTitle, region: str = "US"
+) -> list[WatchProvider]:
+    """Return cached watch providers, or fetch from TMDB and cache them."""
+    # Check for cached providers that are still fresh
+    cutoff = datetime.now(timezone.utc) - timedelta(days=PROVIDER_CACHE_DAYS)
+    cached = (
+        db.query(WatchProvider)
+        .filter(
+            WatchProvider.title_id == title.id,
+            WatchProvider.region == region,
+            WatchProvider.fetched_at > cutoff,
+        )
+        .all()
+    )
+
+    if cached:
+        return cached
+
+    # Need TMDB ID to fetch providers
+    if not title.tmdb_id:
+        # Try to get tmdb_id first via movie details fetch
+        details = get_or_fetch_movie_details(db, title)
+        if not title.tmdb_id:
+            return []
+
+    # Delete stale entries for this title+region
+    db.query(WatchProvider).filter(
+        WatchProvider.title_id == title.id,
+        WatchProvider.region == region,
+    ).delete()
+
+    provider_data = fetch_watch_providers_from_tmdb(title.tmdb_id, region)
+    if not provider_data:
+        return []
+
+    providers = []
+    for ptype in ("flatrate", "rent", "buy"):
+        for p in provider_data.get(ptype, []):
+            wp = WatchProvider(
+                title_id=title.id,
+                provider_id=p["provider_id"],
+                provider_name=p["provider_name"],
+                logo_path=p.get("logo_path"),
+                provider_type=ptype,
+                region=region,
+                display_priority=p.get("display_priority"),
+            )
+            db.add(wp)
+            providers.append(wp)
+
+    db.commit()
+    return providers
+
+
+def refresh_provider_master(db: Session, region: str = "US") -> int:
+    """Fetch full provider list from TMDB and seed/update provider_master table.
+
+    Returns number of providers updated.
+    """
+    if not settings.TMDB_API_KEY:
+        return 0
+
+    url = "https://api.themoviedb.org/3/watch/providers/movie"
+    params = {"api_key": settings.TMDB_API_KEY, "watch_region": region}
+
+    try:
+        resp = httpx.get(url, params=params, timeout=10.0)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception:
+        return 0
+
+    results = data.get("results", [])
+    count = 0
+
+    for p in results:
+        pid = p.get("provider_id")
+        if not pid:
+            continue
+
+        existing = db.query(ProviderMaster).filter(ProviderMaster.provider_id == pid).first()
+        if existing:
+            existing.provider_name = p.get("provider_name", existing.provider_name)
+            existing.logo_path = p.get("logo_path", existing.logo_path)
+            existing.display_priority = p.get("display_priority", existing.display_priority)
+        else:
+            db.add(ProviderMaster(
+                provider_id=pid,
+                provider_name=p.get("provider_name", ""),
+                logo_path=p.get("logo_path"),
+                display_priority=p.get("display_priority"),
+            ))
+        count += 1
+
+    db.commit()
+    return count

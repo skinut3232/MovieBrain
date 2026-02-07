@@ -33,7 +33,8 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<Navigate to="/explore" replace />} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/movie/:titleId" element={<MovieDetailPage />} />

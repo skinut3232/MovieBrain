@@ -4,6 +4,7 @@ import MoviePoster from '../common/MoviePoster';
 import MovieActions from './MovieActions';
 import SimilarMovies from './SimilarMovies';
 import TrailerEmbed from './TrailerEmbed';
+import WatchProviders from './WatchProviders';
 
 interface Props {
   title: TitleDetailResponse;
@@ -58,6 +59,9 @@ export default function MovieDetail({ title }: Props) {
           <p className="text-gray-300 leading-relaxed">{title.overview}</p>
         </div>
       )}
+
+      {/* Where to Watch */}
+      <WatchProviders titleId={title.id} />
 
       {/* Directors */}
       {directors.length > 0 && (

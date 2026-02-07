@@ -123,6 +123,38 @@ class CatalogAka(Base):
 
     __table_args__ = (
         Index("ix_catalog_akas_title_id", "title_id"),
+        Index("ix_catalog_akas_language", "language"),
+    )
+
+
+class ProviderMaster(Base):
+    __tablename__ = "provider_master"
+
+    provider_id = Column(Integer, primary_key=True, autoincrement=False)
+    provider_name = Column(String(200), nullable=False)
+    logo_path = Column(String(255))
+    display_priority = Column(Integer)
+
+
+class WatchProvider(Base):
+    __tablename__ = "watch_providers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title_id = Column(Integer, ForeignKey("catalog_titles.id", ondelete="CASCADE"), nullable=False)
+    provider_id = Column(Integer, nullable=False)
+    provider_name = Column(String(200), nullable=False)
+    logo_path = Column(String(255))
+    provider_type = Column(String(20), nullable=False)  # flatrate, rent, buy
+    region = Column(String(10), nullable=False, server_default="US")
+    display_priority = Column(Integer)
+    fetched_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    title = relationship("CatalogTitle")
+
+    __table_args__ = (
+        Index("ix_watch_providers_title_id", "title_id"),
+        Index("ix_watch_providers_provider_id", "provider_id"),
+        Index("ix_watch_providers_region", "region"),
     )
 
 

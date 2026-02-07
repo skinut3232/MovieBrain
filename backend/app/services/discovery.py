@@ -60,10 +60,15 @@ SortOption = Literal["popularity", "rating", "year_desc", "year_asc"]
 def browse_catalog(
     db: Session,
     genre: str | None = None,
+    genres: list[str] | None = None,
     min_year: int | None = None,
     max_year: int | None = None,
     decade: int | None = None,
     min_rating: float | None = None,
+    min_runtime: int | None = None,
+    max_runtime: int | None = None,
+    language: str | None = None,
+    provider_ids: list[int] | None = None,
     sort_by: SortOption = "popularity",
     page: int = 1,
     limit: int = 20,
@@ -87,9 +92,18 @@ def browse_catalog(
         min_year = decade
         max_year = decade + 9
 
-    if genre:
+    # Multi-genre filter (OR logic) takes precedence over single genre
+    if genres:
+        genre_clauses = []
+        for i, g in enumerate(genres):
+            param_name = f"genre_{i}"
+            genre_clauses.append(f"ct.genres ILIKE :{param_name}")
+            params[param_name] = f"%{g}%"
+        filters.append(f"({' OR '.join(genre_clauses)})")
+    elif genre:
         filters.append("ct.genres ILIKE :genre")
         params["genre"] = f"%{genre}%"
+
     if min_year is not None:
         filters.append("ct.start_year >= :min_year")
         params["min_year"] = min_year
@@ -99,6 +113,22 @@ def browse_catalog(
     if min_rating is not None:
         filters.append("cr.average_rating >= :min_rating")  # This implicitly excludes NULLs
         params["min_rating"] = min_rating
+    if min_runtime is not None:
+        filters.append("ct.runtime_minutes >= :min_runtime")
+        params["min_runtime"] = min_runtime
+    if max_runtime is not None:
+        filters.append("ct.runtime_minutes <= :max_runtime")
+        params["max_runtime"] = max_runtime
+    if language is not None:
+        filters.append(
+            "EXISTS (SELECT 1 FROM catalog_akas ca WHERE ca.title_id = ct.id AND ca.language = :language)"
+        )
+        params["language"] = language
+    if provider_ids:
+        pid_list = ",".join(str(pid) for pid in provider_ids)
+        filters.append(
+            f"EXISTS (SELECT 1 FROM watch_providers wp WHERE wp.title_id = ct.id AND wp.provider_id IN ({pid_list}) AND wp.provider_type = 'flatrate')"
+        )
 
     where_clause = " AND ".join(filters) if filters else "TRUE"
 
@@ -648,3 +678,23 @@ def _get_row_by_query(
     ]
 
     return FeaturedRow(id=row_id, title=title, movies=movies)
+
+
+@dataclass
+class LanguageOption:
+    code: str
+    count: int
+
+
+def get_available_languages(db: Session) -> list[LanguageOption]:
+    """Get available languages from catalog_akas with at least 10 titles."""
+    query_sql = text("""
+        SELECT language, COUNT(DISTINCT title_id) AS cnt
+        FROM catalog_akas
+        WHERE language IS NOT NULL AND language != ''
+        GROUP BY language
+        HAVING COUNT(DISTINCT title_id) >= 10
+        ORDER BY cnt DESC
+    """)
+    rows = db.execute(query_sql).fetchall()
+    return [LanguageOption(code=row[0], count=row[1]) for row in rows]
