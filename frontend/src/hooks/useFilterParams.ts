@@ -7,6 +7,7 @@ export interface FilterState {
   minYear?: number;
   maxYear?: number;
   minRating?: number;
+  minRtScore?: number;
   minRuntime?: number;
   maxRuntime?: number;
   language?: string;
@@ -43,6 +44,7 @@ export function useFilterParams() {
     }
 
     const minRatingParam = searchParams.get('minRating');
+    const minRtScoreParam = searchParams.get('minRtScore');
     const minRuntimeParam = searchParams.get('minRuntime');
     const maxRuntimeParam = searchParams.get('maxRuntime');
 
@@ -56,6 +58,7 @@ export function useFilterParams() {
       minYear,
       maxYear,
       minRating: minRatingParam ? Number(minRatingParam) : undefined,
+      minRtScore: minRtScoreParam ? Number(minRtScoreParam) : undefined,
       minRuntime: minRuntimeParam ? Number(minRuntimeParam) : undefined,
       maxRuntime: maxRuntimeParam ? Number(maxRuntimeParam) : undefined,
       language: searchParams.get('language') || undefined,
@@ -95,6 +98,11 @@ export function useFilterParams() {
       if ('minRating' in updates) {
         if (updates.minRating != null) params.set('minRating', String(updates.minRating));
         else params.delete('minRating');
+      }
+
+      if ('minRtScore' in updates) {
+        if (updates.minRtScore != null) params.set('minRtScore', String(updates.minRtScore));
+        else params.delete('minRtScore');
       }
 
       if ('minRuntime' in updates) {
@@ -143,6 +151,7 @@ export function useFilterParams() {
       filters.minYear != null ||
       filters.maxYear != null ||
       filters.minRating != null ||
+      filters.minRtScore != null ||
       filters.minRuntime != null ||
       filters.maxRuntime != null ||
       filters.language != null ||
@@ -155,6 +164,7 @@ export function useFilterParams() {
     if (filters.genres.length > 0) count++;
     if (filters.minYear != null || filters.maxYear != null) count++;
     if (filters.minRating != null) count++;
+    if (filters.minRtScore != null) count++;
     if (filters.minRuntime != null || filters.maxRuntime != null) count++;
     if (filters.language != null) count++;
     if (filters.providerIds.length > 0) count++;

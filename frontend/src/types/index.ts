@@ -54,6 +54,9 @@ export interface PrincipalResponse {
 export interface RatingResponse {
   average_rating: number | null;
   num_votes: number | null;
+  rt_critic_score: number | null;
+  rt_audience_score: number | null;
+  metacritic_score: number | null;
 }
 
 export interface CrewResponse {
@@ -82,6 +85,9 @@ export interface TitleDetailResponse {
   overview: string | null;
   trailer_key: string | null;
   rating: RatingResponse | null;
+  rt_critic_score: number | null;
+  rt_audience_score: number | null;
+  metacritic_score: number | null;
   principals: PrincipalResponse[];
   crew: CrewResponse | null;
   akas: AkaResponse[];
@@ -228,6 +234,7 @@ export interface BrowseTitle {
   average_rating: number | null;
   num_votes: number | null;
   poster_url: string | null;
+  rt_critic_score: number | null;
 }
 
 export interface BrowseResponse {
@@ -331,6 +338,7 @@ export interface FeaturedRowMovie {
   average_rating: number | null;
   num_votes: number | null;
   poster_url: string | null;
+  rt_critic_score: number | null;
 }
 
 export interface FeaturedRow {

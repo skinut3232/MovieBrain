@@ -48,6 +48,7 @@ export interface BrowseFilters {
   maxYear?: number;
   decade?: number;
   minRating?: number;
+  minRtScore?: number;
   minRuntime?: number;
   maxRuntime?: number;
   language?: string;
@@ -68,6 +69,7 @@ export async function browseCatalog(
   if (filters?.maxYear) params.max_year = filters.maxYear;
   if (filters?.decade) params.decade = filters.decade;
   if (filters?.minRating) params.min_rating = filters.minRating;
+  if (filters?.minRtScore) params.min_rt_score = filters.minRtScore;
   if (filters?.minRuntime) params.min_runtime = filters.minRuntime;
   if (filters?.maxRuntime) params.max_runtime = filters.maxRuntime;
   if (filters?.language) params.language = filters.language;

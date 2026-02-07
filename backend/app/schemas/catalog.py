@@ -54,6 +54,9 @@ class AkaResponse(BaseModel):
 class RatingResponse(BaseModel):
     average_rating: float | None
     num_votes: int | None
+    rt_critic_score: int | None = None
+    rt_audience_score: int | None = None
+    metacritic_score: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -79,6 +82,9 @@ class TitleDetailResponse(BaseModel):
     overview: str | None = None
     trailer_key: str | None = None
     rating: RatingResponse | None
+    rt_critic_score: int | None = None
+    rt_audience_score: int | None = None
+    metacritic_score: int | None = None
     principals: list[PrincipalResponse]
     crew: CrewResponse | None
     akas: list[AkaResponse]
@@ -100,6 +106,7 @@ class BrowseTitle(BaseModel):
     average_rating: float | None
     num_votes: int | None
     poster_url: str | None = None
+    rt_critic_score: int | None = None
 
 
 class BrowseResponse(BaseModel):
@@ -213,6 +220,7 @@ class FeaturedRowMovie(BaseModel):
     average_rating: float | None
     num_votes: int | None
     poster_url: str | None = None
+    rt_critic_score: int | None = None
 
 
 class FeaturedRow(BaseModel):

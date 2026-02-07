@@ -123,9 +123,10 @@ export default function MovieRow({ title, movies, seeAllLink }: Props) {
                   </div>
                 )}
                 {/* Rating Badge */}
-                {movie.average_rating && (
-                  <div className="absolute top-2 right-2 bg-black/80 text-amber-400 text-xs font-semibold px-1.5 py-0.5 rounded">
-                    {movie.average_rating.toFixed(1)}
+                {movie.rt_critic_score != null && (
+                  <div className="absolute top-2 right-2 bg-black/80 text-xs font-semibold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                    <span>{movie.rt_critic_score >= 60 ? '\uD83C\uDF45' : '\uD83E\uDD22'}</span>
+                    <span className="text-white">{movie.rt_critic_score}%</span>
                   </div>
                 )}
               </div>

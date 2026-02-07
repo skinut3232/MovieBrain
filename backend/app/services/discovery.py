@@ -24,6 +24,7 @@ class BrowseResult:
     average_rating: float | None
     num_votes: int | None
     poster_path: str | None
+    rt_critic_score: int | None = None
 
 
 @dataclass
@@ -65,6 +66,7 @@ def browse_catalog(
     max_year: int | None = None,
     decade: int | None = None,
     min_rating: float | None = None,
+    min_rt_score: int | None = None,
     min_runtime: int | None = None,
     max_runtime: int | None = None,
     language: str | None = None,
@@ -113,6 +115,9 @@ def browse_catalog(
     if min_rating is not None:
         filters.append("cr.average_rating >= :min_rating")  # This implicitly excludes NULLs
         params["min_rating"] = min_rating
+    if min_rt_score is not None:
+        filters.append("cr.rt_critic_score >= :min_rt_score")
+        params["min_rt_score"] = min_rt_score
     if min_runtime is not None:
         filters.append("ct.runtime_minutes >= :min_runtime")
         params["min_runtime"] = min_runtime
@@ -161,7 +166,8 @@ def browse_catalog(
             ct.genres,
             cr.average_rating,
             cr.num_votes,
-            ct.poster_path
+            ct.poster_path,
+            cr.rt_critic_score
         FROM catalog_titles ct
         LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
         WHERE {where_clause}
@@ -182,6 +188,7 @@ def browse_catalog(
             average_rating=row[6],
             num_votes=row[7],
             poster_path=row[8],
+            rt_critic_score=row[9],
         )
         for row in rows
     ]
@@ -536,7 +543,8 @@ def _get_trending_row(
             ct.genres,
             cr.average_rating,
             cr.num_votes,
-            ct.poster_path
+            ct.poster_path,
+            cr.rt_critic_score
         FROM catalog_titles ct
         LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
         WHERE {where_clause}
@@ -560,6 +568,7 @@ def _get_trending_row(
             average_rating=row[6],
             num_votes=row[7],
             poster_path=row[8],
+            rt_critic_score=row[9],
         )
         for row in rows
     ]
@@ -649,7 +658,8 @@ def _get_row_by_query(
             ct.genres,
             cr.average_rating,
             cr.num_votes,
-            ct.poster_path
+            ct.poster_path,
+            cr.rt_critic_score
         FROM catalog_titles ct
         LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
         WHERE {where_clause}
@@ -673,6 +683,7 @@ def _get_row_by_query(
             average_rating=row[6],
             num_votes=row[7],
             poster_path=row[8],
+            rt_critic_score=row[9],
         )
         for row in rows
     ]

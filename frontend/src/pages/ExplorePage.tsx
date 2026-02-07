@@ -80,6 +80,7 @@ export default function ExplorePage() {
       minYear: filters.minYear,
       maxYear: filters.maxYear,
       minRating: filters.minRating,
+      minRtScore: filters.minRtScore,
       minRuntime: filters.minRuntime,
       maxRuntime: filters.maxRuntime,
       language: filters.language,
@@ -102,8 +103,8 @@ export default function ExplorePage() {
     return () => { cancelled = true; };
   }, [
     filters.genres, filters.minYear, filters.maxYear, filters.minRating,
-    filters.minRuntime, filters.maxRuntime, filters.language, filters.sort,
-    filters.hideWatched, filters.providerIds, filters.browseAll,
+    filters.minRtScore, filters.minRuntime, filters.maxRuntime, filters.language,
+    filters.sort, filters.hideWatched, filters.providerIds, filters.browseAll,
     filteredPage, isFilteredMode, excludeProfileId, activeProfile,
   ]);
 
@@ -112,8 +113,8 @@ export default function ExplorePage() {
     setFilteredPage(1);
   }, [
     filters.genres, filters.minYear, filters.maxYear, filters.minRating,
-    filters.minRuntime, filters.maxRuntime, filters.language, filters.sort,
-    filters.providerIds,
+    filters.minRtScore, filters.minRuntime, filters.maxRuntime, filters.language,
+    filters.sort, filters.providerIds,
   ]);
 
   const totalPages = Math.ceil(filteredTotal / 24);
@@ -236,6 +237,7 @@ export default function ExplorePage() {
                     average_rating: m.average_rating,
                     num_votes: m.num_votes,
                     poster_url: m.poster_url,
+                    rt_critic_score: m.rt_critic_score,
                   }))}
                 />
 

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str = ""
     TMDB_API_KEY: str = ""
+    OMDB_API_KEY: str = ""
     TMDB_IMAGE_BASE_URL: str = "https://image.tmdb.org/t/p/"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSIONS: int = 1536

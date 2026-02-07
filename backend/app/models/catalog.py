@@ -61,6 +61,10 @@ class CatalogRating(Base):
     title_id = Column(Integer, ForeignKey("catalog_titles.id"), nullable=False, unique=True)
     average_rating = Column(Float)
     num_votes = Column(Integer)
+    rt_critic_score = Column(Integer)
+    rt_audience_score = Column(Integer)
+    metacritic_score = Column(Integer)
+    omdb_fetched_at = Column(DateTime(timezone=True))
 
     title = relationship("CatalogTitle", back_populates="rating")
 

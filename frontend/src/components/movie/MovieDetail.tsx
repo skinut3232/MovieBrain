@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { TitleDetailResponse } from '../../types';
 import MoviePoster from '../common/MoviePoster';
+import CriticScores from './CriticScores';
 import MovieActions from './MovieActions';
 import SimilarMovies from './SimilarMovies';
 import TrailerEmbed from './TrailerEmbed';
@@ -32,20 +33,23 @@ export default function MovieDetail({ title }: Props) {
             </p>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-4">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-3">
             {title.start_year && <span>{title.start_year}</span>}
             {title.runtime_minutes && <span>{title.runtime_minutes} min</span>}
             {title.genres && (
               <span className="text-gray-500">{title.genres}</span>
             )}
-            {title.rating && (
-              <span>
-                <span className="text-amber-400 font-semibold">
-                  {title.rating.average_rating}
-                </span>{' '}
-                ({title.rating.num_votes?.toLocaleString()} votes)
-              </span>
-            )}
+          </div>
+
+          <div className="mb-4">
+            <CriticScores
+              imdbRating={title.rating?.average_rating ?? null}
+              imdbVotes={title.rating?.num_votes ?? null}
+              rtCriticScore={title.rt_critic_score}
+              rtAudienceScore={title.rt_audience_score}
+              metacriticScore={title.metacritic_score}
+              imdbTconst={title.imdb_tconst}
+            />
           </div>
 
           <MovieActions titleId={title.id} titleName={title.primary_title} />

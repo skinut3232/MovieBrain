@@ -37,6 +37,7 @@ from app.services.discovery import (
     get_random_movie,
     get_similar_movies,
 )
+from app.services.omdb import get_or_fetch_omdb_ratings
 from app.services.tmdb import (
     get_or_fetch_movie_details,
     get_or_fetch_watch_providers,
@@ -100,6 +101,7 @@ def browse(
     max_year: int | None = Query(None),
     decade: int | None = Query(None),
     min_rating: float | None = Query(None, ge=0, le=10),
+    min_rt_score: int | None = Query(None, ge=0, le=100),
     min_runtime: int | None = Query(None, ge=0),
     max_runtime: int | None = Query(None, ge=0),
     language: str | None = Query(None),
@@ -125,6 +127,7 @@ def browse(
         max_year=max_year,
         decade=decade,
         min_rating=min_rating,
+        min_rt_score=min_rt_score,
         min_runtime=min_runtime,
         max_runtime=max_runtime,
         language=language,
@@ -147,6 +150,7 @@ def browse(
                 average_rating=r.average_rating,
                 num_votes=r.num_votes,
                 poster_url=get_poster_url(r.poster_path),
+                rt_critic_score=r.rt_critic_score,
             )
             for r in results
         ],
@@ -217,6 +221,7 @@ def featured_rows(
                         average_rating=m.average_rating,
                         num_votes=m.num_votes,
                         poster_url=get_poster_url(m.poster_path),
+                        rt_critic_score=m.rt_critic_score,
                     )
                     for m in row.movies
                 ],
@@ -265,6 +270,9 @@ def get_title(title_id: int, db: Session = Depends(get_db)):
     # Lazy-fill poster, overview, and trailer if needed
     details = get_or_fetch_movie_details(db, title)
 
+    # Lazy-fill RT + Metacritic scores from OMDb
+    omdb_scores = get_or_fetch_omdb_ratings(db, title)
+
     return TitleDetailResponse(
         id=title.id,
         imdb_tconst=title.imdb_tconst,
@@ -279,6 +287,9 @@ def get_title(title_id: int, db: Session = Depends(get_db)):
         overview=details["overview"],
         trailer_key=details["trailer_key"],
         rating=title.rating,
+        rt_critic_score=omdb_scores["rt_critic_score"],
+        rt_audience_score=omdb_scores["rt_audience_score"],
+        metacritic_score=omdb_scores["metacritic_score"],
         principals=title.principals,
         crew=title.crew,
         akas=title.akas,

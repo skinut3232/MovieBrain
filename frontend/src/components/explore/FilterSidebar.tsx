@@ -68,13 +68,13 @@ export default function FilterSidebar({ filters, onFilterChange, onClearAll, act
   // Local state for debounced numeric inputs
   const [localMinYear, setLocalMinYear] = useState(filters.minYear?.toString() ?? '');
   const [localMaxYear, setLocalMaxYear] = useState(filters.maxYear?.toString() ?? '');
-  const [localMinRating, setLocalMinRating] = useState(filters.minRating?.toString() ?? '');
+  const [localMinRtScore, setLocalMinRtScore] = useState(filters.minRtScore?.toString() ?? '');
   const [localMinRuntime, setLocalMinRuntime] = useState(filters.minRuntime?.toString() ?? '');
   const [localMaxRuntime, setLocalMaxRuntime] = useState(filters.maxRuntime?.toString() ?? '');
 
   const debouncedMinYear = useDebounce(localMinYear, 400);
   const debouncedMaxYear = useDebounce(localMaxYear, 400);
-  const debouncedMinRating = useDebounce(localMinRating, 400);
+  const debouncedMinRtScore = useDebounce(localMinRtScore, 400);
   const debouncedMinRuntime = useDebounce(localMinRuntime, 400);
   const debouncedMaxRuntime = useDebounce(localMaxRuntime, 400);
 
@@ -82,10 +82,10 @@ export default function FilterSidebar({ filters, onFilterChange, onClearAll, act
   useEffect(() => {
     setLocalMinYear(filters.minYear?.toString() ?? '');
     setLocalMaxYear(filters.maxYear?.toString() ?? '');
-    setLocalMinRating(filters.minRating?.toString() ?? '');
+    setLocalMinRtScore(filters.minRtScore?.toString() ?? '');
     setLocalMinRuntime(filters.minRuntime?.toString() ?? '');
     setLocalMaxRuntime(filters.maxRuntime?.toString() ?? '');
-  }, [filters.minYear, filters.maxYear, filters.minRating, filters.minRuntime, filters.maxRuntime]);
+  }, [filters.minYear, filters.maxYear, filters.minRtScore, filters.minRuntime, filters.maxRuntime]);
 
   // Push debounced values to URL
   useEffect(() => {
@@ -99,9 +99,9 @@ export default function FilterSidebar({ filters, onFilterChange, onClearAll, act
   }, [debouncedMaxYear]);
 
   useEffect(() => {
-    const val = debouncedMinRating ? Number(debouncedMinRating) : undefined;
-    if (val !== filters.minRating) onFilterChange({ minRating: val });
-  }, [debouncedMinRating]);
+    const val = debouncedMinRtScore ? Number(debouncedMinRtScore) : undefined;
+    if (val !== filters.minRtScore) onFilterChange({ minRtScore: val });
+  }, [debouncedMinRtScore]);
 
   useEffect(() => {
     const val = debouncedMinRuntime ? Number(debouncedMinRuntime) : undefined;
@@ -203,23 +203,23 @@ export default function FilterSidebar({ filters, onFilterChange, onClearAll, act
         </div>
       </FilterSection>
 
-      {/* Rating */}
-      <FilterSection title="Rating">
+      {/* RT Score */}
+      <FilterSection title="RT Score">
         <div className="flex items-center gap-3">
           <input
             type="range"
             min="0"
-            max="10"
-            step="0.5"
-            value={localMinRating || '0'}
+            max="100"
+            step="5"
+            value={localMinRtScore || '0'}
             onChange={(e) => {
               const val = e.target.value;
-              setLocalMinRating(val === '0' ? '' : val);
+              setLocalMinRtScore(val === '0' ? '' : val);
             }}
             className="w-full accent-amber-500"
           />
-          <span className="text-sm text-gray-300 w-10 text-right">
-            {localMinRating ? `${localMinRating}+` : 'Any'}
+          <span className="text-sm text-gray-300 w-12 text-right">
+            {localMinRtScore ? `${localMinRtScore}%+` : 'Any'}
           </span>
         </div>
       </FilterSection>
