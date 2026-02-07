@@ -1,8 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
 import httpx
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models.catalog import CatalogTitle
+from app.models.catalog import CatalogTitle, TrendingCache
 
 
 def get_poster_url(poster_path: str | None) -> str | None:
@@ -48,7 +50,7 @@ def fetch_movie_details_from_tmdb(imdb_id: str) -> dict | None:
 
     Uses the "find by external ID" endpoint to get TMDb ID,
     then fetches movie details with videos appended.
-    Returns dict with poster_path, overview, trailer_key (or None for each).
+    Returns dict with tmdb_id, poster_path, overview, trailer_key (or None for each).
     """
     if not settings.TMDB_API_KEY:
         return None
@@ -67,7 +69,7 @@ def fetch_movie_details_from_tmdb(imdb_id: str) -> dict | None:
 
         tmdb_id = None
         media_type = None
-        result = {"poster_path": None, "overview": None, "trailer_key": None}
+        result = {"tmdb_id": None, "poster_path": None, "overview": None, "trailer_key": None}
 
         # Check movie_results first, then tv_results
         for key, mtype in [("movie_results", "movie"), ("tv_results", "tv")]:
@@ -76,6 +78,7 @@ def fetch_movie_details_from_tmdb(imdb_id: str) -> dict | None:
                 item = results[0]
                 tmdb_id = item.get("id")
                 media_type = mtype
+                result["tmdb_id"] = tmdb_id
                 result["poster_path"] = item.get("poster_path")
                 result["overview"] = item.get("overview")
                 break
@@ -142,13 +145,14 @@ def get_or_fetch_poster_path(db: Session, title: CatalogTitle) -> str | None:
 def get_or_fetch_movie_details(db: Session, title: CatalogTitle) -> dict:
     """Return cached movie details, or fetch from TMDb and cache them.
 
-    Fetches poster_path, overview, and trailer_key if not already cached.
+    Fetches poster_path, overview, trailer_key, and tmdb_id if not already cached.
     Returns dict with poster_path, overview, trailer_key.
     """
     needs_fetch = (
         title.poster_path is None
         or title.overview is None
         or title.trailer_key is None
+        or title.tmdb_id is None
     )
 
     if not needs_fetch:
@@ -161,6 +165,8 @@ def get_or_fetch_movie_details(db: Session, title: CatalogTitle) -> dict:
     details = fetch_movie_details_from_tmdb(title.imdb_tconst)
     if details:
         # Only update fields that are currently null
+        if title.tmdb_id is None and details.get("tmdb_id"):
+            title.tmdb_id = details["tmdb_id"]
         if title.poster_path is None and details.get("poster_path"):
             title.poster_path = details["poster_path"]
         if title.overview is None and details.get("overview"):
@@ -174,3 +180,123 @@ def get_or_fetch_movie_details(db: Session, title: CatalogTitle) -> dict:
         "overview": title.overview,
         "trailer_key": title.trailer_key,
     }
+
+
+# Trending cache settings
+TRENDING_CACHE_DAYS = 7
+
+
+def fetch_tmdb_trending() -> list[dict]:
+    """Fetch trending movies from TMDB API.
+
+    Returns list of dicts with id, title, release_date, imdb_id (if available).
+    """
+    if not settings.TMDB_API_KEY:
+        return []
+
+    url = "https://api.themoviedb.org/3/trending/movie/week"
+    params = {"api_key": settings.TMDB_API_KEY}
+
+    try:
+        resp = httpx.get(url, params=params, timeout=10.0)
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("results", [])
+    except Exception:
+        return []
+
+
+def get_imdb_id_from_tmdb(tmdb_id: int) -> str | None:
+    """Get IMDB ID for a TMDB movie ID."""
+    if not settings.TMDB_API_KEY:
+        return None
+
+    url = f"https://api.themoviedb.org/3/movie/{tmdb_id}/external_ids"
+    params = {"api_key": settings.TMDB_API_KEY}
+
+    try:
+        resp = httpx.get(url, params=params, timeout=10.0)
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("imdb_id")
+    except Exception:
+        return None
+
+
+def refresh_trending_cache(db: Session) -> int:
+    """Refresh the trending cache from TMDB.
+
+    Returns the number of movies successfully matched to catalog.
+    """
+    trending = fetch_tmdb_trending()
+    if not trending:
+        return 0
+
+    # Clear old cache entries
+    db.query(TrendingCache).delete()
+
+    matched_count = 0
+
+    for rank, movie in enumerate(trending, start=1):
+        tmdb_id = movie.get("id")
+        if not tmdb_id:
+            continue
+
+        # Try to find by tmdb_id first
+        title = db.query(CatalogTitle).filter(CatalogTitle.tmdb_id == tmdb_id).first()
+
+        # Fallback: get IMDB ID from TMDB and match by imdb_tconst
+        if not title:
+            imdb_id = get_imdb_id_from_tmdb(tmdb_id)
+            if imdb_id:
+                title = db.query(CatalogTitle).filter(
+                    CatalogTitle.imdb_tconst == imdb_id
+                ).first()
+                # If found, update the tmdb_id for future lookups
+                if title and not title.tmdb_id:
+                    title.tmdb_id = tmdb_id
+
+        # Add to cache (even if title not found, for tracking purposes)
+        cache_entry = TrendingCache(
+            tmdb_id=tmdb_id,
+            title_id=title.id if title else None,
+            rank=rank,
+        )
+        db.add(cache_entry)
+
+        if title:
+            matched_count += 1
+
+    db.commit()
+    return matched_count
+
+
+def is_trending_cache_fresh(db: Session) -> bool:
+    """Check if the trending cache is fresh (less than TRENDING_CACHE_DAYS old)."""
+    latest = db.query(TrendingCache).order_by(TrendingCache.fetched_at.desc()).first()
+    if not latest:
+        return False
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=TRENDING_CACHE_DAYS)
+    return latest.fetched_at > cutoff
+
+
+def get_trending_title_ids(db: Session, limit: int = 20) -> list[int]:
+    """Get cached trending movie title IDs, refreshing if stale.
+
+    Returns list of title_ids in trending order.
+    """
+    # Check if cache is fresh, refresh if not
+    if not is_trending_cache_fresh(db):
+        refresh_trending_cache(db)
+
+    # Get cached results with matched titles
+    results = (
+        db.query(TrendingCache.title_id)
+        .filter(TrendingCache.title_id.isnot(None))
+        .order_by(TrendingCache.rank)
+        .limit(limit)
+        .all()
+    )
+
+    return [r[0] for r in results]

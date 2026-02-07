@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Boolean,
     Column,
+    DateTime,
     Float,
     ForeignKey,
     Index,
@@ -10,6 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY, TSVECTOR
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 from app.database import Base
 
@@ -19,6 +21,7 @@ class CatalogTitle(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     imdb_tconst = Column(String(20), unique=True, nullable=False, index=True)
+    tmdb_id = Column(Integer, index=True)
     title_type = Column(String(50))
     primary_title = Column(String(500), nullable=False)
     original_title = Column(String(500))
@@ -120,4 +123,21 @@ class CatalogAka(Base):
 
     __table_args__ = (
         Index("ix_catalog_akas_title_id", "title_id"),
+    )
+
+
+class TrendingCache(Base):
+    __tablename__ = "trending_cache"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tmdb_id = Column(Integer, nullable=False)
+    title_id = Column(Integer, ForeignKey("catalog_titles.id", ondelete="CASCADE"), nullable=True)
+    rank = Column(Integer, nullable=False)
+    fetched_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    title = relationship("CatalogTitle")
+
+    __table_args__ = (
+        Index("ix_trending_cache_fetched_at", "fetched_at"),
+        Index("ix_trending_cache_title_id", "title_id"),
     )

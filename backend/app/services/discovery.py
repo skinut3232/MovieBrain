@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 from typing import Literal
 
 from sqlalchemy import text
@@ -6,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.catalog import CatalogPerson, CatalogTitle
+
+logger = logging.getLogger(__name__)
 
 MODEL_ID = settings.EMBEDDING_MODEL
 
@@ -64,12 +67,20 @@ def browse_catalog(
     sort_by: SortOption = "popularity",
     page: int = 1,
     limit: int = 20,
+    exclude_watched_profile_id: int | None = None,
 ) -> tuple[list[BrowseResult], int]:
     """Browse the catalog with filters and sorting."""
     offset = (page - 1) * limit
 
     filters = []
     params: dict = {"limit": limit, "offset": offset}
+
+    # Exclude watched movies if profile_id is provided
+    if exclude_watched_profile_id is not None:
+        filters.append(
+            "ct.id NOT IN (SELECT title_id FROM watches WHERE profile_id = :exclude_profile_id)"
+        )
+        params["exclude_profile_id"] = exclude_watched_profile_id
 
     # Apply decade filter (overrides min/max year if provided)
     if decade is not None:
@@ -86,17 +97,17 @@ def browse_catalog(
         filters.append("ct.start_year <= :max_year")
         params["max_year"] = max_year
     if min_rating is not None:
-        filters.append("cr.average_rating >= :min_rating")
+        filters.append("cr.average_rating >= :min_rating")  # This implicitly excludes NULLs
         params["min_rating"] = min_rating
 
     where_clause = " AND ".join(filters) if filters else "TRUE"
 
-    # Determine sort order
+    # Determine sort order (NULLS LAST for ratings since we use LEFT JOIN)
     sort_clauses = {
-        "popularity": "cr.average_rating * LN(cr.num_votes + 1) DESC",
-        "rating": "cr.average_rating DESC NULLS LAST, cr.num_votes DESC",
-        "year_desc": "ct.start_year DESC NULLS LAST, cr.num_votes DESC",
-        "year_asc": "ct.start_year ASC NULLS LAST, cr.num_votes DESC",
+        "popularity": "COALESCE(cr.average_rating * LN(cr.num_votes + 1), 0) DESC",
+        "rating": "cr.average_rating DESC NULLS LAST, cr.num_votes DESC NULLS LAST",
+        "year_desc": "ct.start_year DESC NULLS LAST, cr.num_votes DESC NULLS LAST",
+        "year_asc": "ct.start_year ASC NULLS LAST, cr.num_votes DESC NULLS LAST",
     }
     order_by = sort_clauses.get(sort_by, sort_clauses["popularity"])
 
@@ -104,7 +115,7 @@ def browse_catalog(
     count_sql = text(f"""
         SELECT COUNT(*)
         FROM catalog_titles ct
-        JOIN catalog_ratings cr ON cr.title_id = ct.id
+        LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
         WHERE {where_clause}
     """)
     total = db.execute(count_sql, params).scalar() or 0
@@ -122,7 +133,7 @@ def browse_catalog(
             cr.num_votes,
             ct.poster_path
         FROM catalog_titles ct
-        JOIN catalog_ratings cr ON cr.title_id = ct.id
+        LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
         WHERE {where_clause}
         ORDER BY {order_by}
         LIMIT :limit OFFSET :offset
@@ -347,3 +358,293 @@ GENRES = [
 ]
 
 DECADES = [1970, 1980, 1990, 2000, 2010, 2020]
+
+# Featured genres for the explore page
+FEATURED_GENRES = ["Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Thriller"]
+
+
+@dataclass
+class RandomMovieResult:
+    title_id: int
+    imdb_tconst: str
+    primary_title: str
+    start_year: int | None
+    runtime_minutes: int | None
+    genres: str | None
+    average_rating: float | None
+    num_votes: int | None
+    poster_path: str | None
+    overview: str | None
+
+
+@dataclass
+class FeaturedRow:
+    id: str
+    title: str
+    movies: list[BrowseResult]
+
+
+def get_random_movie(
+    db: Session,
+    genre: str | None = None,
+    decade: int | None = None,
+    min_rating: float | None = None,
+    exclude_watched_profile_id: int | None = None,
+) -> RandomMovieResult | None:
+    """Get a random movie, optionally filtered by genre/decade/rating."""
+    filters = ["cr.num_votes >= 1000"]  # Only include well-known movies
+    params: dict = {}
+
+    # Exclude watched movies if profile_id is provided
+    if exclude_watched_profile_id is not None:
+        filters.append(
+            "ct.id NOT IN (SELECT title_id FROM watches WHERE profile_id = :exclude_profile_id)"
+        )
+        params["exclude_profile_id"] = exclude_watched_profile_id
+
+    if genre:
+        filters.append("ct.genres ILIKE :genre")
+        params["genre"] = f"%{genre}%"
+
+    if decade is not None:
+        filters.append("ct.start_year >= :min_year AND ct.start_year <= :max_year")
+        params["min_year"] = decade
+        params["max_year"] = decade + 9
+
+    if min_rating is not None:
+        filters.append("cr.average_rating >= :min_rating")
+        params["min_rating"] = min_rating
+
+    where_clause = " AND ".join(filters)
+
+    query_sql = text(f"""
+        SELECT
+            ct.id AS title_id,
+            ct.imdb_tconst,
+            ct.primary_title,
+            ct.start_year,
+            ct.runtime_minutes,
+            ct.genres,
+            cr.average_rating,
+            cr.num_votes,
+            ct.poster_path,
+            ct.overview
+        FROM catalog_titles ct
+        JOIN catalog_ratings cr ON cr.title_id = ct.id
+        WHERE {where_clause}
+        ORDER BY RANDOM()
+        LIMIT 1
+    """)
+
+    row = db.execute(query_sql, params).fetchone()
+
+    if not row:
+        return None
+
+    return RandomMovieResult(
+        title_id=row[0],
+        imdb_tconst=row[1],
+        primary_title=row[2],
+        start_year=row[3],
+        runtime_minutes=row[4],
+        genres=row[5],
+        average_rating=row[6],
+        num_votes=row[7],
+        poster_path=row[8],
+        overview=row[9],
+    )
+
+
+def _get_trending_row(
+    db: Session,
+    limit: int = 20,
+    exclude_watched_profile_id: int | None = None,
+) -> FeaturedRow | None:
+    """Get the trending row using TMDB trending data."""
+    from app.services.tmdb import get_trending_title_ids
+
+    try:
+        title_ids = get_trending_title_ids(db, limit=limit * 2)  # Fetch extra to account for watched exclusions
+    except Exception as e:
+        logger.warning(f"Failed to get trending from TMDB: {e}")
+        title_ids = []
+
+    if not title_ids:
+        # Fallback to static popularity query
+        return _get_row_by_query(
+            db,
+            "trending",
+            "Trending Now",
+            "COALESCE(cr.average_rating * LN(cr.num_votes + 1), 0) DESC",
+            limit=limit,
+            exclude_watched_profile_id=exclude_watched_profile_id,
+        )
+
+    # Build query with the specific title_ids in order
+    params: dict = {"limit": limit}
+    filters = [f"ct.id IN ({','.join(str(tid) for tid in title_ids)})"]
+
+    if exclude_watched_profile_id is not None:
+        filters.append(
+            "ct.id NOT IN (SELECT title_id FROM watches WHERE profile_id = :exclude_profile_id)"
+        )
+        params["exclude_profile_id"] = exclude_watched_profile_id
+
+    where_clause = " AND ".join(filters)
+
+    # Build CASE statement to maintain TMDB trending order
+    order_cases = " ".join(f"WHEN {tid} THEN {i}" for i, tid in enumerate(title_ids))
+    order_clause = f"CASE ct.id {order_cases} END"
+
+    query_sql = text(f"""
+        SELECT
+            ct.id AS title_id,
+            ct.imdb_tconst,
+            ct.primary_title,
+            ct.start_year,
+            ct.runtime_minutes,
+            ct.genres,
+            cr.average_rating,
+            cr.num_votes,
+            ct.poster_path
+        FROM catalog_titles ct
+        LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
+        WHERE {where_clause}
+        ORDER BY {order_clause}
+        LIMIT :limit
+    """)
+
+    rows = db.execute(query_sql, params).fetchall()
+
+    if not rows:
+        return None
+
+    movies = [
+        BrowseResult(
+            title_id=row[0],
+            imdb_tconst=row[1],
+            primary_title=row[2],
+            start_year=row[3],
+            runtime_minutes=row[4],
+            genres=row[5],
+            average_rating=row[6],
+            num_votes=row[7],
+            poster_path=row[8],
+        )
+        for row in rows
+    ]
+
+    return FeaturedRow(id="trending", title="Trending Now", movies=movies)
+
+
+def get_featured_rows(
+    db: Session,
+    limit: int = 20,
+    exclude_watched_profile_id: int | None = None,
+) -> list[FeaturedRow]:
+    """Get multiple featured movie rows for the explore page."""
+    rows = []
+
+    # Trending Now - using TMDB trending data
+    trending = _get_trending_row(
+        db,
+        limit=limit,
+        exclude_watched_profile_id=exclude_watched_profile_id,
+    )
+    if trending:
+        rows.append(trending)
+
+    # New Releases - 2024+ sorted by popularity
+    new_releases = _get_row_by_query(
+        db,
+        "new-releases",
+        "New Releases",
+        "COALESCE(cr.average_rating * LN(cr.num_votes + 1), 0) DESC",
+        extra_filter="ct.start_year >= 2024",
+        limit=limit,
+        exclude_watched_profile_id=exclude_watched_profile_id,
+    )
+    if new_releases:
+        rows.append(new_releases)
+
+    # Genre rows
+    for genre in FEATURED_GENRES:
+        genre_row = _get_row_by_query(
+            db,
+            genre.lower().replace("-", ""),
+            f"{genre} Movies",
+            "COALESCE(cr.average_rating * LN(cr.num_votes + 1), 0) DESC",
+            extra_filter=f"ct.genres ILIKE '%{genre}%'",
+            limit=limit,
+            exclude_watched_profile_id=exclude_watched_profile_id,
+        )
+        if genre_row:
+            rows.append(genre_row)
+
+    return rows
+
+
+def _get_row_by_query(
+    db: Session,
+    row_id: str,
+    title: str,
+    order_by: str,
+    extra_filter: str | None = None,
+    limit: int = 20,
+    exclude_watched_profile_id: int | None = None,
+) -> FeaturedRow | None:
+    """Helper to get a featured row with a specific query."""
+    filters = []
+    params: dict = {"limit": limit}
+
+    if extra_filter:
+        filters.append(extra_filter)
+
+    # Exclude watched movies if profile_id is provided
+    if exclude_watched_profile_id is not None:
+        filters.append(
+            "ct.id NOT IN (SELECT title_id FROM watches WHERE profile_id = :exclude_profile_id)"
+        )
+        params["exclude_profile_id"] = exclude_watched_profile_id
+
+    where_clause = " AND ".join(filters) if filters else "TRUE"
+
+    query_sql = text(f"""
+        SELECT
+            ct.id AS title_id,
+            ct.imdb_tconst,
+            ct.primary_title,
+            ct.start_year,
+            ct.runtime_minutes,
+            ct.genres,
+            cr.average_rating,
+            cr.num_votes,
+            ct.poster_path
+        FROM catalog_titles ct
+        LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
+        WHERE {where_clause}
+        ORDER BY {order_by}
+        LIMIT :limit
+    """)
+
+    rows = db.execute(query_sql, params).fetchall()
+
+    if not rows:
+        return None
+
+    movies = [
+        BrowseResult(
+            title_id=row[0],
+            imdb_tconst=row[1],
+            primary_title=row[2],
+            start_year=row[3],
+            runtime_minutes=row[4],
+            genres=row[5],
+            average_rating=row[6],
+            num_votes=row[7],
+            poster_path=row[8],
+        )
+        for row in rows
+    ]
+
+    return FeaturedRow(id=row_id, title=title, movies=movies)
