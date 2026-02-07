@@ -25,25 +25,25 @@ export default function MovieGrid({ movies }: Props) {
           to={`/movie/${movie.id}`}
           className="group"
         >
-          <div className="relative">
-            <MoviePoster
-              posterUrl={movie.poster_url}
-              title={movie.primary_title}
-              size="md"
-            />
-            {movie.rt_critic_score != null && (
-              <div className="absolute top-2 right-2 bg-black/80 text-xs font-semibold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                <span>{movie.rt_critic_score >= 60 ? '\uD83C\uDF45' : '\uD83E\uDD22'}</span>
-                <span className="text-white">{movie.rt_critic_score}%</span>
-              </div>
-            )}
-          </div>
+          <MoviePoster
+            posterUrl={movie.poster_url}
+            title={movie.primary_title}
+            size="md"
+          />
           <div className="mt-2">
             <h3 className="text-sm font-medium text-gray-200 group-hover:text-white truncate">
               {movie.primary_title}
             </h3>
-            <p className="text-xs text-gray-500">
-              {movie.start_year || 'Unknown year'}
+            <p className="text-xs text-gray-500 flex items-center gap-1">
+              <span>{movie.start_year || 'Unknown year'}</span>
+              {movie.rt_critic_score != null && (
+                <>
+                  <span>·</span>
+                  <span className={movie.rt_critic_score >= 60 ? 'text-red-400' : 'text-yellow-500'}>
+                    {movie.rt_critic_score >= 60 ? '\uD83C\uDF45' : '\uD83E\uDD22'}{' '}{movie.rt_critic_score}%
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </Link>
