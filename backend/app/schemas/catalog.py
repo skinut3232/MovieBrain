@@ -81,6 +81,7 @@ class TitleDetailResponse(BaseModel):
     poster_url: str | None = None
     overview: str | None = None
     trailer_key: str | None = None
+    original_language: str | None = None
     rating: RatingResponse | None
     rt_critic_score: int | None = None
     rt_audience_score: int | None = None

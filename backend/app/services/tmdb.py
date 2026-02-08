@@ -72,7 +72,7 @@ def fetch_movie_details_from_tmdb(imdb_id: str) -> dict | None:
 
         tmdb_id = None
         media_type = None
-        result = {"tmdb_id": None, "poster_path": None, "overview": None, "trailer_key": None}
+        result = {"tmdb_id": None, "poster_path": None, "overview": None, "trailer_key": None, "original_language": None}
 
         # Check movie_results first, then tv_results
         for key, mtype in [("movie_results", "movie"), ("tv_results", "tv")]:
@@ -84,6 +84,7 @@ def fetch_movie_details_from_tmdb(imdb_id: str) -> dict | None:
                 result["tmdb_id"] = tmdb_id
                 result["poster_path"] = item.get("poster_path")
                 result["overview"] = item.get("overview")
+                result["original_language"] = item.get("original_language")
                 break
 
         if not tmdb_id:
@@ -156,6 +157,7 @@ def get_or_fetch_movie_details(db: Session, title: CatalogTitle) -> dict:
         or title.overview is None
         or title.trailer_key is None
         or title.tmdb_id is None
+        or title.original_language is None
     )
 
     if not needs_fetch:
@@ -163,6 +165,7 @@ def get_or_fetch_movie_details(db: Session, title: CatalogTitle) -> dict:
             "poster_path": title.poster_path,
             "overview": title.overview,
             "trailer_key": title.trailer_key,
+            "original_language": title.original_language,
         }
 
     details = fetch_movie_details_from_tmdb(title.imdb_tconst)
@@ -176,12 +179,15 @@ def get_or_fetch_movie_details(db: Session, title: CatalogTitle) -> dict:
             title.overview = details["overview"]
         if title.trailer_key is None and details.get("trailer_key"):
             title.trailer_key = details["trailer_key"]
+        if title.original_language is None and details.get("original_language"):
+            title.original_language = details["original_language"]
         db.commit()
 
     return {
         "poster_path": title.poster_path,
         "overview": title.overview,
         "trailer_key": title.trailer_key,
+        "original_language": title.original_language,
     }
 
 

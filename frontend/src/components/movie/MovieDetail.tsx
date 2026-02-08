@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { TitleDetailResponse } from '../../types';
+import { getLanguageName } from '../../utils/languageCodes';
 import MoviePoster from '../common/MoviePoster';
 import CriticScores from './CriticScores';
 import MovieActions from './MovieActions';
@@ -19,6 +20,10 @@ export default function MovieDetail({ title }: Props) {
     (p) => p.category === 'actor' || p.category === 'actress'
   );
 
+  const originalLanguage = title.original_language
+    ? getLanguageName(title.original_language)
+    : null;
+
   return (
     <div>
       <div className="flex gap-6 mb-4">
@@ -36,6 +41,11 @@ export default function MovieDetail({ title }: Props) {
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-3">
             {title.start_year && <span>{title.start_year}</span>}
             {title.runtime_minutes && <span>{title.runtime_minutes} min</span>}
+            {originalLanguage && originalLanguage !== 'English' && (
+              <span className="bg-gray-700 text-gray-200 px-2 py-0.5 rounded text-xs font-medium">
+                {originalLanguage}
+              </span>
+            )}
             {title.genres && (
               <span className="text-gray-500">{title.genres}</span>
             )}

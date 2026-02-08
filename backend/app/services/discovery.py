@@ -125,9 +125,7 @@ def browse_catalog(
         filters.append("ct.runtime_minutes <= :max_runtime")
         params["max_runtime"] = max_runtime
     if language is not None:
-        filters.append(
-            "EXISTS (SELECT 1 FROM catalog_akas ca WHERE ca.title_id = ct.id AND ca.language = :language)"
-        )
+        filters.append("ct.original_language = :language")
         params["language"] = language
     if provider_ids:
         pid_placeholders = ", ".join(f":pid_{i}" for i in range(len(provider_ids)))
@@ -708,13 +706,13 @@ class LanguageOption:
 
 
 def get_available_languages(db: Session) -> list[LanguageOption]:
-    """Get available languages from catalog_akas with at least 10 titles."""
+    """Get available original languages from catalog_titles with at least 10 titles."""
     query_sql = text("""
-        SELECT language, COUNT(DISTINCT title_id) AS cnt
-        FROM catalog_akas
-        WHERE language IS NOT NULL AND language != ''
-        GROUP BY language
-        HAVING COUNT(DISTINCT title_id) >= 10
+        SELECT original_language, COUNT(*) AS cnt
+        FROM catalog_titles
+        WHERE original_language IS NOT NULL AND original_language != ''
+        GROUP BY original_language
+        HAVING COUNT(*) >= 10
         ORDER BY cnt DESC
     """)
     rows = db.execute(query_sql).fetchall()

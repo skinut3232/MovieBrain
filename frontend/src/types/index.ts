@@ -84,6 +84,7 @@ export interface TitleDetailResponse {
   poster_url: string | null;
   overview: string | null;
   trailer_key: string | null;
+  original_language: string | null;
   rating: RatingResponse | null;
   rt_critic_score: number | null;
   rt_audience_score: number | null;

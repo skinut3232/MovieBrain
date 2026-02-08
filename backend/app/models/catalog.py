@@ -32,6 +32,7 @@ class CatalogTitle(Base):
     poster_path = Column(String(255))
     overview = Column(Text)
     trailer_key = Column(String(20))
+    original_language = Column(String(10))
     title_search_text = Column(Text)
     ts_vector = Column(TSVECTOR)
 

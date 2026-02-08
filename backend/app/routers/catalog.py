@@ -293,6 +293,7 @@ def get_title(title_id: int, db: Session = Depends(get_db)):
         poster_url=get_poster_url(details["poster_path"]),
         overview=details["overview"],
         trailer_key=details["trailer_key"],
+        original_language=details.get("original_language") or title.original_language,
         rating=title.rating,
         rt_critic_score=omdb_scores["rt_critic_score"],
         rt_audience_score=omdb_scores["rt_audience_score"],
