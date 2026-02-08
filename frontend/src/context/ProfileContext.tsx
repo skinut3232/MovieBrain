@@ -27,10 +27,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const refreshProfiles = useCallback(async () => {
     if (!isAuthenticated) return;
-    const list = await profilesApi.getProfiles();
-    setProfiles(list);
-    if (list.length > 0 && !activeProfile) {
-      setActiveProfile(list[0]);
+    try {
+      const list = await profilesApi.getProfiles();
+      setProfiles(list);
+      if (list.length > 0 && !activeProfile) {
+        setActiveProfile(list[0]);
+      }
+    } catch {
+      // Profile fetch failed — keep existing state
     }
   }, [isAuthenticated, activeProfile]);
 
@@ -45,6 +49,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     },
     [activeProfile]
   );
+
+  // Note: createProfile intentionally does NOT catch — callers handle the error
 
   useEffect(() => {
     if (isAuthenticated) {

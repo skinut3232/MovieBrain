@@ -1,7 +1,10 @@
+import logging
 from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.models.catalog import CatalogTitle, ProviderMaster, TrendingCache, WatchProvider
@@ -39,8 +42,8 @@ def fetch_poster_path_from_tmdb(imdb_id: str) -> str | None:
             results = data.get(key, [])
             if results and results[0].get("poster_path"):
                 return results[0]["poster_path"]
-    except Exception:
-        pass
+    except (httpx.HTTPError, KeyError, IndexError) as e:
+        logger.warning("Failed to fetch poster from TMDB for %s: %s", imdb_id, e)
 
     return None
 
@@ -119,8 +122,8 @@ def fetch_movie_details_from_tmdb(imdb_id: str) -> dict | None:
         result["trailer_key"] = trailer_key
         return result
 
-    except Exception:
-        pass
+    except (httpx.HTTPError, KeyError, IndexError) as e:
+        logger.warning("Failed to fetch movie details from TMDB for %s: %s", imdb_id, e)
 
     return None
 
@@ -202,7 +205,8 @@ def fetch_tmdb_trending() -> list[dict]:
         resp.raise_for_status()
         data = resp.json()
         return data.get("results", [])
-    except Exception:
+    except (httpx.HTTPError, KeyError) as e:
+        logger.warning("Failed to fetch trending from TMDB: %s", e)
         return []
 
 
@@ -219,7 +223,8 @@ def get_imdb_id_from_tmdb(tmdb_id: int) -> str | None:
         resp.raise_for_status()
         data = resp.json()
         return data.get("imdb_id")
-    except Exception:
+    except (httpx.HTTPError, KeyError) as e:
+        logger.warning("Failed to get IMDB ID from TMDB for tmdb_id %s: %s", tmdb_id, e)
         return None
 
 
@@ -232,9 +237,8 @@ def refresh_trending_cache(db: Session) -> int:
     if not trending:
         return 0
 
-    # Clear old cache entries
-    db.query(TrendingCache).delete()
-
+    # Build new entries first before deleting old ones
+    new_entries = []
     matched_count = 0
 
     for rank, movie in enumerate(trending, start=1):
@@ -256,16 +260,19 @@ def refresh_trending_cache(db: Session) -> int:
                 if title and not title.tmdb_id:
                     title.tmdb_id = tmdb_id
 
-        # Add to cache (even if title not found, for tracking purposes)
-        cache_entry = TrendingCache(
+        new_entries.append(TrendingCache(
             tmdb_id=tmdb_id,
             title_id=title.id if title else None,
             rank=rank,
-        )
-        db.add(cache_entry)
+        ))
 
         if title:
             matched_count += 1
+
+    # Only delete old entries after successfully building new ones
+    db.query(TrendingCache).delete()
+    for entry in new_entries:
+        db.add(entry)
 
     db.commit()
     return matched_count
@@ -322,7 +329,8 @@ def fetch_watch_providers_from_tmdb(tmdb_id: int, region: str = "US") -> dict | 
         resp.raise_for_status()
         data = resp.json()
         return data.get("results", {}).get(region)
-    except Exception:
+    except (httpx.HTTPError, KeyError) as e:
+        logger.warning("Failed to fetch watch providers from TMDB for tmdb_id %s: %s", tmdb_id, e)
         return None
 
 
@@ -352,15 +360,15 @@ def get_or_fetch_watch_providers(
         if not title.tmdb_id:
             return []
 
-    # Delete stale entries for this title+region
+    provider_data = fetch_watch_providers_from_tmdb(title.tmdb_id, region)
+    if not provider_data:
+        return []
+
+    # Delete stale entries only after successful fetch
     db.query(WatchProvider).filter(
         WatchProvider.title_id == title.id,
         WatchProvider.region == region,
     ).delete()
-
-    provider_data = fetch_watch_providers_from_tmdb(title.tmdb_id, region)
-    if not provider_data:
-        return []
 
     providers = []
     for ptype in ("flatrate", "rent", "buy"):
@@ -396,7 +404,8 @@ def refresh_provider_master(db: Session, region: str = "US") -> int:
         resp = httpx.get(url, params=params, timeout=10.0)
         resp.raise_for_status()
         data = resp.json()
-    except Exception:
+    except (httpx.HTTPError, KeyError) as e:
+        logger.warning("Failed to fetch provider master list from TMDB: %s", e)
         return 0
 
     results = data.get("results", [])

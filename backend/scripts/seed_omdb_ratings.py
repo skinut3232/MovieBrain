@@ -85,7 +85,7 @@ def main():
             # Call OMDb
             try:
                 resp = client.get(
-                    "http://www.omdbapi.com/",
+                    "https://www.omdbapi.com/",
                     params={"apikey": settings.OMDB_API_KEY, "i": imdb_tconst},
                     timeout=10.0,
                 )

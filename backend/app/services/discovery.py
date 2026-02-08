@@ -130,9 +130,11 @@ def browse_catalog(
         )
         params["language"] = language
     if provider_ids:
-        pid_list = ",".join(str(pid) for pid in provider_ids)
+        pid_placeholders = ", ".join(f":pid_{i}" for i in range(len(provider_ids)))
+        for i, pid in enumerate(provider_ids):
+            params[f"pid_{i}"] = pid
         filters.append(
-            f"EXISTS (SELECT 1 FROM watch_providers wp WHERE wp.title_id = ct.id AND wp.provider_id IN ({pid_list}) AND wp.provider_type = 'flatrate')"
+            f"EXISTS (SELECT 1 FROM watch_providers wp WHERE wp.title_id = ct.id AND wp.provider_id IN ({pid_placeholders}) AND wp.provider_type = 'flatrate')"
         )
 
     where_clause = " AND ".join(filters) if filters else "TRUE"
@@ -517,9 +519,12 @@ def _get_trending_row(
             exclude_watched_profile_id=exclude_watched_profile_id,
         )
 
-    # Build query with the specific title_ids in order
+    # Build query with the specific title_ids in order (parameterized)
     params: dict = {"limit": limit}
-    filters = [f"ct.id IN ({','.join(str(tid) for tid in title_ids)})"]
+    tid_placeholders = ", ".join(f":tid_{i}" for i in range(len(title_ids)))
+    for i, tid in enumerate(title_ids):
+        params[f"tid_{i}"] = tid
+    filters = [f"ct.id IN ({tid_placeholders})"]
 
     if exclude_watched_profile_id is not None:
         filters.append(
@@ -529,8 +534,8 @@ def _get_trending_row(
 
     where_clause = " AND ".join(filters)
 
-    # Build CASE statement to maintain TMDB trending order
-    order_cases = " ".join(f"WHEN {tid} THEN {i}" for i, tid in enumerate(title_ids))
+    # Build CASE statement to maintain TMDB trending order (parameterized)
+    order_cases = " ".join(f"WHEN :tid_{i} THEN {i}" for i in range(len(title_ids)))
     order_clause = f"CASE ct.id {order_cases} END"
 
     query_sql = text(f"""
@@ -599,7 +604,7 @@ def get_featured_rows(
         "new-releases",
         "New Releases",
         "COALESCE(cr.average_rating * LN(cr.num_votes + 1), 0) DESC",
-        extra_filter="ct.start_year >= 2024",
+        min_year=2024,
         limit=limit,
         exclude_watched_profile_id=exclude_watched_profile_id,
     )
@@ -613,7 +618,7 @@ def get_featured_rows(
             genre.lower().replace("-", ""),
             f"{genre} Movies",
             "COALESCE(cr.average_rating * LN(cr.num_votes + 1), 0) DESC",
-            extra_filter=f"ct.genres ILIKE '%{genre}%'",
+            genre_filter=genre,
             limit=limit,
             exclude_watched_profile_id=exclude_watched_profile_id,
         )
@@ -628,7 +633,8 @@ def _get_row_by_query(
     row_id: str,
     title: str,
     order_by: str,
-    extra_filter: str | None = None,
+    genre_filter: str | None = None,
+    min_year: int | None = None,
     limit: int = 20,
     exclude_watched_profile_id: int | None = None,
 ) -> FeaturedRow | None:
@@ -636,8 +642,12 @@ def _get_row_by_query(
     filters = []
     params: dict = {"limit": limit}
 
-    if extra_filter:
-        filters.append(extra_filter)
+    if genre_filter:
+        filters.append("ct.genres ILIKE :row_genre")
+        params["row_genre"] = f"%{genre_filter}%"
+    if min_year is not None:
+        filters.append("ct.start_year >= :row_min_year")
+        params["row_min_year"] = min_year
 
     # Exclude watched movies if profile_id is provided
     if exclude_watched_profile_id is not None:

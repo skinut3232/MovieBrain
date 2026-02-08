@@ -20,6 +20,8 @@ export default function ListsPage() {
     try {
       const data = await getLists(profileId);
       setLists(data);
+    } catch {
+      // Load failed — keep previous state
     } finally {
       setLoading(false);
     }
@@ -32,10 +34,14 @@ export default function ListsPage() {
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     if (!profileId || !newName.trim()) return;
-    await createList(profileId, newName.trim(), newType);
-    setNewName('');
-    setShowCreate(false);
-    loadLists();
+    try {
+      await createList(profileId, newName.trim(), newType);
+      setNewName('');
+      setShowCreate(false);
+      loadLists();
+    } catch {
+      // Create failed — form stays open for retry
+    }
   };
 
   if (!profileId) {

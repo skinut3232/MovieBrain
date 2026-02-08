@@ -29,6 +29,7 @@ export default function SearchPage() {
       setData(null);
       return;
     }
+    let cancelled = false;
     setLoading(true);
     const filters: SearchFilters = {};
     if (genre) filters.genre = genre;
@@ -37,8 +38,17 @@ export default function SearchPage() {
     if (minRating) filters.minRating = Number(minRating);
 
     searchTitles(debouncedQuery, page, filters)
-      .then(setData)
-      .finally(() => setLoading(false));
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Search failed:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
   }, [debouncedQuery, page, genre, minYear, maxYear, minRating]);
 
   useEffect(() => {

@@ -23,7 +23,7 @@ export default function TitleCard({ title }: Props) {
               <span className="text-gray-500">{title.genres}</span>
             )}
           </div>
-          {title.average_rating && (
+          {title.average_rating != null && (
             <div className="mt-2 text-sm">
               <span className="text-amber-400">{title.average_rating}</span>
               <span className="text-gray-500">

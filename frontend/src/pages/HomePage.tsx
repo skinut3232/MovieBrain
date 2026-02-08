@@ -13,9 +13,11 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!activeProfile) return;
-    getWatchHistory(activeProfile.id, { limit: 5, sort_by: 'created_at' }).then(
-      (data) => setRecentWatches(data.results)
-    );
+    let cancelled = false;
+    getWatchHistory(activeProfile.id, { limit: 5, sort_by: 'created_at' })
+      .then((data) => { if (!cancelled) setRecentWatches(data.results); })
+      .catch(() => { /* non-critical — home page still usable */ });
+    return () => { cancelled = true; };
   }, [activeProfile]);
 
   if (profiles.length === 0) {
@@ -29,11 +31,15 @@ export default function HomePage() {
           onSubmit={async (e) => {
             e.preventDefault();
             if (newProfileName.trim()) {
-              const profile = await createProfile(newProfileName.trim());
-              setNewProfileName('');
-              // Redirect new profiles to onboarding
-              if (profile && !profile.onboarding_completed) {
-                navigate('/onboard');
+              try {
+                const profile = await createProfile(newProfileName.trim());
+                setNewProfileName('');
+                // Redirect new profiles to onboarding
+                if (profile && !profile.onboarding_completed) {
+                  navigate('/onboard');
+                }
+              } catch {
+                // Profile creation failed — form stays for retry
               }
             }
           }}

@@ -24,7 +24,7 @@ export default function WatchCard({ watch, onDelete }: Props) {
         </Link>
         <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-gray-400">
           {watch.title.start_year && <span>{watch.title.start_year}</span>}
-          {watch.rating_1_10 && (
+          {watch.rating_1_10 != null && (
             <span className="text-amber-400">
               {watch.rating_1_10}/10
             </span>

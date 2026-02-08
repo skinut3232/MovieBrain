@@ -117,19 +117,19 @@ def _get_auto_collection_movies(
         filters.append("ct.genres ILIKE :genre")
         params["genre"] = f"%{genre}%"
 
-    if min_year := query_params.get("min_year"):
+    if (min_year := query_params.get("min_year")) is not None:
         filters.append("ct.start_year >= :min_year")
         params["min_year"] = min_year
 
-    if max_year := query_params.get("max_year"):
+    if (max_year := query_params.get("max_year")) is not None:
         filters.append("ct.start_year <= :max_year")
         params["max_year"] = max_year
 
-    if min_rating := query_params.get("min_rating"):
+    if (min_rating := query_params.get("min_rating")) is not None:
         filters.append("cr.average_rating >= :min_rating")
         params["min_rating"] = min_rating
 
-    if min_votes := query_params.get("min_votes"):
+    if (min_votes := query_params.get("min_votes")) is not None:
         filters.append("cr.num_votes >= :min_votes")
         params["min_votes"] = min_votes
 

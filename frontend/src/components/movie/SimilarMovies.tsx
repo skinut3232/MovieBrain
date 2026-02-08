@@ -49,7 +49,7 @@ export default function SimilarMovies({ titleId }: Props) {
                 title={movie.primary_title}
                 size="sm"
               />
-              {movie.average_rating && (
+              {movie.average_rating != null && (
                 <div className="absolute top-1 right-1 bg-black/80 text-amber-400 text-xs font-semibold px-1 py-0.5 rounded">
                   {movie.average_rating.toFixed(1)}
                 </div>

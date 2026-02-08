@@ -13,11 +13,13 @@ export default function WatchProviders({ titleId }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     getTitleProviders(titleId)
-      .then(setProviders)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .then((data) => { if (!cancelled) setProviders(data); })
+      .catch(() => { /* non-critical */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [titleId]);
 
   if (loading) return null;

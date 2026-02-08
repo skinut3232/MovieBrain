@@ -115,12 +115,14 @@ export default function FilterSidebar({ filters, onFilterChange, onClearAll, act
 
   // Load languages and providers
   useEffect(() => {
+    let cancelled = false;
     getLanguages()
-      .then((data) => setLanguages(data.languages))
-      .catch(console.error);
+      .then((data) => { if (!cancelled) setLanguages(data.languages); })
+      .catch(() => { /* non-critical */ });
     getProviders()
-      .then((data) => setProviders(data.providers))
-      .catch(console.error);
+      .then((data) => { if (!cancelled) setProviders(data.providers); })
+      .catch(() => { /* non-critical */ });
+    return () => { cancelled = true; };
   }, []);
 
   const toggleGenre = useCallback(

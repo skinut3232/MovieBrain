@@ -53,7 +53,7 @@ export default function RecommendPage() {
   useEffect(() => {
     loadTaste();
     loadRecommendations(1, filters);
-  }, [profileId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadTaste, loadRecommendations]); // runs when profileId changes (via memoized deps)
 
   const handleFiltersApply = (newFilters: RecommendRequest) => {
     setFilters(newFilters);

@@ -20,6 +20,8 @@ export default function ListDetail() {
     try {
       const data = await getListDetail(profileId, Number(listId));
       setDetail(data);
+    } catch {
+      setDetail(null);
     } finally {
       setLoading(false);
     }
@@ -31,14 +33,22 @@ export default function ListDetail() {
 
   const handleRemoveItem = async (titleId: number) => {
     if (!profileId || !listId) return;
-    await removeListItem(profileId, Number(listId), titleId);
-    loadDetail();
+    try {
+      await removeListItem(profileId, Number(listId), titleId);
+      loadDetail();
+    } catch {
+      // Remove failed — list unchanged
+    }
   };
 
   const handleDeleteList = async () => {
     if (!profileId || !listId || !confirm('Delete this list?')) return;
-    await deleteList(profileId, Number(listId));
-    navigate('/lists');
+    try {
+      await deleteList(profileId, Number(listId));
+      navigate('/lists');
+    } catch {
+      // Delete failed — stay on page
+    }
   };
 
   if (loading) return <p className="text-gray-400">Loading...</p>;

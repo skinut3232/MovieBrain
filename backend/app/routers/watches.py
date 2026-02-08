@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -59,7 +61,7 @@ def list_history(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    sort_by: str = Query("watched_date"),
+    sort_by: Literal["watched_date", "rating", "created_at"] = Query("watched_date"),
     tag: str | None = Query(None),
     min_rating: int | None = Query(None, ge=1, le=10),
     max_rating: int | None = Query(None, ge=1, le=10),

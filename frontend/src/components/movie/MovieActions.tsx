@@ -22,22 +22,32 @@ export default function MovieActions({ titleId, titleName }: Props) {
 
   useEffect(() => {
     if (!profileId) return;
+    let cancelled = false;
     getFlags(profileId).then((flags) => {
-      const f = flags.find((f) => f.title_id === titleId);
-      setFlag(f || null);
+      if (!cancelled) {
+        const f = flags.find((f) => f.title_id === titleId);
+        setFlag(f || null);
+      }
     });
-    getLists(profileId).then(setLists);
+    getLists(profileId).then((l) => {
+      if (!cancelled) setLists(l);
+    });
+    return () => { cancelled = true; };
   }, [profileId, titleId]);
 
   if (!profileId) return null;
 
   const handleFlag = async () => {
-    if (flag) {
-      await deleteFlag(profileId, titleId);
-      setFlag(null);
-    } else {
-      const f = await createFlag(profileId, titleId, 'not_interested');
-      setFlag(f);
+    try {
+      if (flag) {
+        await deleteFlag(profileId, titleId);
+        setFlag(null);
+      } else {
+        const f = await createFlag(profileId, titleId, 'not_interested');
+        setFlag(f);
+      }
+    } catch {
+      // Flag toggle failed — state unchanged, no action needed
     }
   };
 

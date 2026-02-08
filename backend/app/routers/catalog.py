@@ -3,7 +3,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_db
+from app.core.dependencies import get_current_user, get_db
+from app.models.user import User
 from app.schemas.catalog import (
     BrowseResponse,
     BrowseTitle,
@@ -114,10 +115,16 @@ def browse(
 ):
     """Browse the catalog with filters and sorting."""
     genres_list = [g.strip() for g in genres.split(",") if g.strip()] if genres else None
-    provider_id_list = (
-        [int(p.strip()) for p in provider_ids.split(",") if p.strip()]
-        if provider_ids else None
-    )
+    try:
+        provider_id_list = (
+            [int(p.strip()) for p in provider_ids.split(",") if p.strip()]
+            if provider_ids else None
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="provider_ids must be a comma-separated list of integers",
+        )
 
     results, total = browse_catalog(
         db,
@@ -363,7 +370,10 @@ def get_person(person_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/trending/refresh")
-def refresh_trending(db: Session = Depends(get_db)):
+def refresh_trending(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Manually refresh the trending cache from TMDB."""
     matched_count = refresh_trending_cache(db)
     return {"status": "refreshed", "matched_movies": matched_count}
@@ -438,7 +448,10 @@ def get_title_providers(title_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/providers/refresh")
-def refresh_providers(db: Session = Depends(get_db)):
+def refresh_providers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Manually refresh the provider master list from TMDB."""
     count = refresh_provider_master(db)
     return {"status": "refreshed", "providers_updated": count}

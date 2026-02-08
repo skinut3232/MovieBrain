@@ -22,10 +22,12 @@ export default function LogWatchModal({
   const [watchedDate, setWatchedDate] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     const body: WatchCreate = {
       title_id: titleId,
       rating_1_10: rating || null,
@@ -41,7 +43,7 @@ export default function LogWatchModal({
       onSaved();
       onClose();
     } catch {
-      // handle error
+      setError('Failed to save watch. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -102,6 +104,9 @@ export default function LogWatchModal({
               className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-400"
             />
           </div>
+          {error && (
+            <p className="text-sm text-red-400">{error}</p>
+          )}
           <div className="flex gap-3 justify-end">
             <button
               type="button"

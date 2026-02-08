@@ -11,12 +11,14 @@ export default function WatchHistory() {
   const [sortBy, setSortBy] = useState('watched_date');
   const [tagFilter, setTagFilter] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const profileId = activeProfile?.id;
 
   const loadHistory = useCallback(async () => {
     if (!profileId) return;
     setLoading(true);
+    setError('');
     try {
       const result = await getWatchHistory(profileId, {
         page,
@@ -24,6 +26,8 @@ export default function WatchHistory() {
         tag: tagFilter || undefined,
       });
       setData(result);
+    } catch {
+      setError('Failed to load watch history.');
     } finally {
       setLoading(false);
     }
@@ -35,8 +39,12 @@ export default function WatchHistory() {
 
   const handleDelete = async (titleId: number) => {
     if (!profileId || !confirm('Remove this watch?')) return;
-    await deleteWatch(profileId, titleId);
-    loadHistory();
+    try {
+      await deleteWatch(profileId, titleId);
+      loadHistory();
+    } catch {
+      setError('Failed to delete watch.');
+    }
   };
 
   if (!profileId) {
@@ -74,6 +82,7 @@ export default function WatchHistory() {
         />
       </div>
 
+      {error && <p className="text-red-400">{error}</p>}
       {loading && <p className="text-gray-400">Loading...</p>}
 
       {data && (

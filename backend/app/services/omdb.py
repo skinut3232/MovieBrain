@@ -1,7 +1,10 @@
+import logging
 from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.models.catalog import CatalogRating, CatalogTitle
@@ -38,14 +41,15 @@ def fetch_omdb_ratings(imdb_id: str) -> dict | None:
     if not settings.OMDB_API_KEY:
         return None
 
-    url = "http://www.omdbapi.com/"
+    url = "https://www.omdbapi.com/"
     params = {"apikey": settings.OMDB_API_KEY, "i": imdb_id}
 
     try:
         resp = httpx.get(url, params=params, timeout=10.0)
         resp.raise_for_status()
         data = resp.json()
-    except Exception:
+    except (httpx.HTTPError, ValueError) as e:
+        logger.warning("Failed to fetch OMDb ratings for %s: %s", imdb_id, e)
         return None
 
     if data.get("Response") == "False":

@@ -12,11 +12,13 @@ export default function MovieDetailPage() {
 
   useEffect(() => {
     if (!titleId) return;
+    let cancelled = false;
     setLoading(true);
     getTitleDetail(Number(titleId))
-      .then(setTitle)
-      .catch(() => setError('Movie not found'))
-      .finally(() => setLoading(false));
+      .then((data) => { if (!cancelled) setTitle(data); })
+      .catch(() => { if (!cancelled) setError('Movie not found'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [titleId]);
 
   if (loading) return <p className="text-gray-400">Loading...</p>;

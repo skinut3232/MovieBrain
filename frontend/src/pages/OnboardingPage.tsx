@@ -36,14 +36,18 @@ export default function OnboardingPage() {
 
   const handleRate = async (titleId: number, rating: number) => {
     if (!profileId) return;
-    await logWatch(profileId, {
-      title_id: titleId,
-      rating_1_10: rating,
-    });
-    setRatedCount((prev) => prev + 1);
-    // Remove the rated movie from the list immediately
-    setMovies((prev) => prev.filter((m) => m.title_id !== titleId));
-    setRemaining((prev) => Math.max(0, prev - 1));
+    try {
+      await logWatch(profileId, {
+        title_id: titleId,
+        rating_1_10: rating,
+      });
+      setRatedCount((prev) => prev + 1);
+      // Remove the rated movie from the list immediately
+      setMovies((prev) => prev.filter((m) => m.title_id !== titleId));
+      setRemaining((prev) => Math.max(0, prev - 1));
+    } catch {
+      // Rating failed — movie stays in list for retry
+    }
   };
 
   const handleSkip = async (titleId: number) => {
@@ -65,9 +69,13 @@ export default function OnboardingPage() {
 
   const handleDone = async () => {
     if (!profileId) return;
-    await completeOnboarding(profileId);
-    await refreshProfiles();
-    navigate('/recommend');
+    try {
+      await completeOnboarding(profileId);
+      await refreshProfiles();
+      navigate('/recommend');
+    } catch {
+      // Completion failed — user can retry
+    }
   };
 
   const visibleMovies = movies;

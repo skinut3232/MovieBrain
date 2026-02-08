@@ -108,7 +108,7 @@ export default function PersonPage() {
                       )}
                     </div>
                   </div>
-                  {item.average_rating && (
+                  {item.average_rating != null && (
                     <div className="text-amber-400 font-semibold text-sm">
                       {item.average_rating.toFixed(1)}
                     </div>

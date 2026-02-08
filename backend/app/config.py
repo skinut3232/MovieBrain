@@ -1,11 +1,16 @@
+import warnings
+
 from pydantic_settings import BaseSettings
+
+_DEFAULT_SECRET = "change-me-to-a-random-secret-key"
 
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/moviebrain"
-    SECRET_KEY: str = "change-me-to-a-random-secret-key"
+    SECRET_KEY: str = _DEFAULT_SECRET
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ENVIRONMENT: str = "development"
 
     OPENAI_API_KEY: str = ""
     TMDB_API_KEY: str = ""
@@ -20,3 +25,15 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.SECRET_KEY == _DEFAULT_SECRET:
+    if settings.ENVIRONMENT == "production":
+        raise RuntimeError(
+            "SECRET_KEY must be changed from the default value in production. "
+            "Set a strong random value via the SECRET_KEY environment variable."
+        )
+    warnings.warn(
+        "SECRET_KEY is using the default placeholder value. "
+        "Set a strong random value before deploying to production.",
+        stacklevel=1,
+    )

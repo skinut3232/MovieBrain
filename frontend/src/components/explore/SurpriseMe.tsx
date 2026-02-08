@@ -121,7 +121,7 @@ export default function SurpriseMe({ genres, excludeWatchedProfileId }: Props) {
                   {movie.runtime_minutes && (
                     <span>{movie.runtime_minutes} min</span>
                   )}
-                  {movie.average_rating && (
+                  {movie.average_rating != null && (
                     <span className="flex items-center gap-1 text-amber-400 font-semibold">
                       <svg
                         className="w-4 h-4"
