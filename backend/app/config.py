@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     EMBEDDING_DIMENSIONS: int = 1536
     RECOMMEND_DEFAULT_LIMIT: int = 20
     RECOMMEND_MIN_RATED_MOVIES: int = 5
+    OPENAI_CHAT_MODEL: str = "gpt-4o-mini"
+    MOOD_BLEND_WEIGHT: float = 0.6
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

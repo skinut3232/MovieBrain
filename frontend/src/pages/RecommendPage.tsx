@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getRecommendations, getTasteProfile, recomputeTaste } from '../api/recommend';
+import MoodInput from '../components/recommend/MoodInput';
 import RecommendCard from '../components/recommend/RecommendCard';
 import RecommendFilters from '../components/recommend/RecommendFilters';
 import { useProfile } from '../context/ProfileContext';
@@ -13,9 +14,12 @@ export default function RecommendPage() {
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [fallbackMode, setFallbackMode] = useState(false);
+  const [moodMode, setMoodMode] = useState(false);
+  const [mood, setMood] = useState('');
   const [loading, setLoading] = useState(false);
   const [taste, setTaste] = useState<TasteProfileResponse | null>(null);
   const [filters, setFilters] = useState<RecommendRequest>({});
+  const [error, setError] = useState<string | null>(null);
 
   const profileId = activeProfile?.id;
 
@@ -29,20 +33,27 @@ export default function RecommendPage() {
     }
   }, [profileId]);
 
-  const loadRecommendations = useCallback(async (currentPage: number, currentFilters: RecommendRequest) => {
+  const loadRecommendations = useCallback(async (currentPage: number, currentFilters: RecommendRequest, currentMood?: string) => {
     if (!profileId) return;
     setLoading(true);
+    setError(null);
     try {
-      const data = await getRecommendations(profileId, {
+      const request: RecommendRequest = {
         ...currentFilters,
         limit,
         page: currentPage,
-      });
+      };
+      if (currentMood) request.mood = currentMood;
+      const data = await getRecommendations(profileId, request);
       setResults(data.results);
       setTotal(data.total);
       setPage(data.page);
       setFallbackMode(data.fallback_mode);
-    } catch {
+      setMoodMode(data.mood_mode);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || msg);
       setResults([]);
       setTotal(0);
     } finally {
@@ -58,11 +69,11 @@ export default function RecommendPage() {
   const handleFiltersApply = (newFilters: RecommendRequest) => {
     setFilters(newFilters);
     setPage(1);
-    loadRecommendations(1, newFilters);
+    loadRecommendations(1, newFilters, mood || undefined);
   };
 
   const handlePageChange = (newPage: number) => {
-    loadRecommendations(newPage, filters);
+    loadRecommendations(newPage, filters, mood || undefined);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -71,10 +82,23 @@ export default function RecommendPage() {
     try {
       const data = await recomputeTaste(profileId);
       setTaste(data);
-      loadRecommendations(1, filters);
+      loadRecommendations(1, filters, mood || undefined);
     } catch {
       // ignore
     }
+  };
+
+  const handleMoodSearch = (moodText: string) => {
+    setMood(moodText);
+    setPage(1);
+    loadRecommendations(1, filters, moodText);
+  };
+
+  const handleMoodClear = () => {
+    setMood('');
+    setMoodMode(false);
+    setPage(1);
+    loadRecommendations(1, filters);
   };
 
   const totalPages = Math.ceil(total / limit);
@@ -140,8 +164,27 @@ export default function RecommendPage() {
         </p>
       )}
 
+      {/* Mood search */}
+      <MoodInput onSearch={handleMoodSearch} onClear={handleMoodClear} loading={loading} />
+
+      {/* Mood mode banner */}
+      {moodMode && mood && !loading && (
+        <div className="mb-4 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10">
+          <p className="text-amber-300 text-sm">
+            Showing movies matching: <span className="font-medium">"{mood}"</span>
+          </p>
+        </div>
+      )}
+
       {/* Filter panel */}
       <RecommendFilters onApply={handleFiltersApply} loading={loading} />
+
+      {/* Error banner */}
+      {error && (
+        <div className="mb-4 p-3 rounded-lg border border-red-500/50 bg-red-500/10">
+          <p className="text-red-300 text-sm">{error}</p>
+        </div>
+      )}
 
       {/* Results */}
       <div className="mt-4">

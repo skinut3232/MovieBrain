@@ -167,6 +167,7 @@ export interface FlagResponse {
 
 // Recommendation types
 export interface RecommendRequest {
+  mood?: string;
   genre?: string;
   min_year?: number;
   max_year?: number;
@@ -189,6 +190,7 @@ export interface RecommendedTitle {
   num_votes: number | null;
   similarity_score: number | null;
   poster_url: string | null;
+  rt_critic_score: number | null;
 }
 
 export interface RecommendResponse {
@@ -197,6 +199,7 @@ export interface RecommendResponse {
   page: number;
   limit: number;
   fallback_mode: boolean;
+  mood_mode: boolean;
 }
 
 export interface TasteProfileResponse {

@@ -6,6 +6,7 @@ from app.config import settings
 
 
 class RecommendRequest(BaseModel):
+    mood: str | None = Field(None, max_length=500)
     genre: str | None = None
     min_year: int | None = None
     max_year: int | None = None
@@ -28,6 +29,7 @@ class RecommendedTitle(BaseModel):
     num_votes: int | None
     similarity_score: float | None
     poster_url: str | None = None
+    rt_critic_score: int | None = None
 
 
 class RecommendResponse(BaseModel):
@@ -36,6 +38,7 @@ class RecommendResponse(BaseModel):
     page: int
     limit: int
     fallback_mode: bool
+    mood_mode: bool = False
 
 
 class TasteProfileResponse(BaseModel):

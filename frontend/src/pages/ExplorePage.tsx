@@ -121,11 +121,11 @@ export default function ExplorePage() {
 
   // Build the filter title for browse mode
   const getFilterTitle = useCallback(() => {
-    if (filters.genres.length === 1) return `${filters.genres[0]} Movies`;
-    if (filters.genres.length > 1) return `${filters.genres.join(', ')} Movies`;
+    if (filters.genres.length === 1) return filters.genres[0];
+    if (filters.genres.length > 1) return filters.genres.join(', ');
     if (filters.minYear && filters.maxYear && filters.maxYear - filters.minYear === 9)
-      return `${filters.minYear}s Movies`;
-    return 'Browse Movies';
+      return `${filters.minYear}s`;
+    return 'Browse';
   }, [filters.genres, filters.minYear, filters.maxYear]);
 
   // Filtered Mode View
@@ -291,7 +291,7 @@ export default function ExplorePage() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
           </svg>
-          Browse All Movies
+          Browse All
         </Link>
         <label className="flex items-center gap-2 cursor-pointer">
           <span className="text-sm text-gray-400">Hide watched movies</span>
@@ -336,7 +336,7 @@ export default function ExplorePage() {
           seeAllLink={
             row.id === 'trending' || row.id === 'new-releases'
               ? undefined
-              : `/explore?genres=${row.title.replace(' Movies', '')}`
+              : `/explore?genres=${row.title}`
           }
         />
       ))}

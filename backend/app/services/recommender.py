@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import numpy as np
+from openai import OpenAI
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,15 @@ from app.models.recommender import ProfileTaste
 
 MODEL_ID = settings.EMBEDDING_MODEL
 MIN_RATED = settings.RECOMMEND_MIN_RATED_MOVIES
+
+_openai_client: OpenAI | None = None
+
+
+def _get_openai_client() -> OpenAI:
+    global _openai_client
+    if _openai_client is None:
+        _openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    return _openai_client
 
 
 @dataclass
@@ -23,6 +33,7 @@ class RecommendationResult:
     num_votes: int | None
     similarity_score: float | None
     poster_path: str | None = None
+    rt_critic_score: int | None = None
 
 
 @dataclass
@@ -128,6 +139,87 @@ def _get_latest_watch_time(db: Session, profile_id: int):
     return row[0] if row else None
 
 
+def get_user_top_movies(db: Session, profile_id: int, n: int = 10) -> list[dict]:
+    """Get a user's top-rated movies for LLM context."""
+    rows = db.execute(
+        text("""
+            SELECT ct.primary_title, ct.start_year, ct.genres, w.rating_1_10
+            FROM watches w
+            JOIN catalog_titles ct ON ct.id = w.title_id
+            WHERE w.profile_id = :profile_id AND w.rating_1_10 IS NOT NULL
+            ORDER BY w.rating_1_10 DESC, w.updated_at DESC
+            LIMIT :n
+        """),
+        {"profile_id": profile_id, "n": n},
+    ).fetchall()
+    return [
+        {"title": r[0], "year": r[1], "genres": r[2], "rating": r[3]}
+        for r in rows
+    ]
+
+
+def generate_mood_description(mood_text: str, top_movies: list[dict]) -> str:
+    """Use GPT-4o-mini to generate an ideal movie description from mood + taste context."""
+    client = _get_openai_client()
+
+    movies_context = ""
+    if top_movies:
+        lines = []
+        for m in top_movies:
+            year = f" ({m['year']})" if m['year'] else ""
+            genres = f" [{m['genres']}]" if m['genres'] else ""
+            lines.append(f"- {m['title']}{year}{genres} — rated {m['rating']}/10")
+        movies_context = "\n\nUser's top-rated movies:\n" + "\n".join(lines)
+
+    response = client.chat.completions.create(
+        model=settings.OPENAI_CHAT_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a movie recommendation assistant. Given a user's mood request "
+                    "and their favorite movies, describe the ideal movie they'd want to watch. "
+                    "Include genre, tone, era, pacing, and type of story. "
+                    "Write 2-3 sentences in the style of a movie description. "
+                    "Do NOT name specific real movies."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Mood: {mood_text}{movies_context}",
+            },
+        ],
+        max_tokens=200,
+        temperature=0.7,
+    )
+    return response.choices[0].message.content or mood_text
+
+
+def embed_mood_text(text: str) -> list[float]:
+    """Embed mood description text using the same model as movie embeddings."""
+    client = _get_openai_client()
+    response = client.embeddings.create(
+        model=settings.EMBEDDING_MODEL,
+        input=text,
+    )
+    return response.data[0].embedding
+
+
+def blend_vectors(
+    mood_vec: list[float],
+    taste_vec: list[float],
+    mood_weight: float = settings.MOOD_BLEND_WEIGHT,
+) -> list[float]:
+    """Weighted average of mood and taste vectors, L2-normalized."""
+    mood_arr = np.array(mood_vec, dtype=np.float64)
+    taste_arr = np.array(taste_vec, dtype=np.float64)
+    blended = mood_weight * mood_arr + (1 - mood_weight) * taste_arr
+    norm = np.linalg.norm(blended)
+    if norm > 0:
+        blended = blended / norm
+    return blended.tolist()
+
+
 def get_recommendations(
     db: Session,
     profile_id: int,
@@ -140,22 +232,29 @@ def get_recommendations(
     min_votes: int | None = None,
     limit: int = 20,
     page: int = 1,
+    search_vector: list[float] | None = None,
 ) -> RecommendResponse:
     """Get movie recommendations for a profile.
 
-    Uses taste vector similarity if available, otherwise falls back
-    to popularity ranking (avg_rating * LOG(num_votes + 1)).
+    When search_vector is provided, uses it directly for similarity search
+    (used for mood-based recommendations). Otherwise uses the taste vector
+    if available, falling back to popularity ranking.
     """
     offset = (page - 1) * limit
 
-    # Lazy recompute: check if taste vector is stale
-    taste = _get_existing_taste(db, profile_id)
-    latest_watch = _get_latest_watch_time(db, profile_id)
+    if search_vector is not None:
+        # Mood mode: use the provided search vector directly
+        taste = None
+        fallback_mode = False
+    else:
+        # Standard mode: lazy recompute taste vector
+        taste = _get_existing_taste(db, profile_id)
+        latest_watch = _get_latest_watch_time(db, profile_id)
 
-    if taste is None or (latest_watch and taste.updated_at and latest_watch > taste.updated_at):
-        taste = compute_taste_vector(db, profile_id)
+        if taste is None or (latest_watch and taste.updated_at and latest_watch > taste.updated_at):
+            taste = compute_taste_vector(db, profile_id)
 
-    fallback_mode = taste is None
+        fallback_mode = taste is None
 
     # Build exclusion set: watched + flagged title_ids
     exclusion_query = text("""
@@ -202,12 +301,16 @@ def get_recommendations(
 
     where_clause = " AND ".join(filters) if filters else "TRUE"
 
-    if not fallback_mode:
-        # Personalized: vector similarity search
-        tv = taste.taste_vector
-        if isinstance(tv, str):
-            tv = np.fromstring(tv.strip("[]"), sep=",").tolist()
-        taste_vec_str = "[" + ",".join(str(float(x)) for x in tv) + "]"
+    if search_vector is not None or not fallback_mode:
+        # Vector similarity search (mood vector or taste vector)
+        if search_vector is not None:
+            vec_list = search_vector
+        else:
+            tv = taste.taste_vector
+            if isinstance(tv, str):
+                tv = np.fromstring(tv.strip("[]"), sep=",").tolist()
+            vec_list = tv
+        taste_vec_str = "[" + ",".join(str(float(x)) for x in vec_list) + "]"
         params["taste_vector"] = taste_vec_str
         params["model_id"] = MODEL_ID
 
@@ -231,7 +334,8 @@ def get_recommendations(
                 cr.average_rating,
                 cr.num_votes,
                 1 - (me.embedding <=> CAST(:taste_vector AS vector)) AS similarity_score,
-                ct.poster_path
+                ct.poster_path,
+                cr.rt_critic_score
             FROM movie_embeddings me
             JOIN catalog_titles ct ON ct.id = me.title_id
             JOIN catalog_ratings cr ON cr.title_id = ct.id
@@ -260,7 +364,8 @@ def get_recommendations(
                 cr.average_rating,
                 cr.num_votes,
                 NULL AS similarity_score,
-                ct.poster_path
+                ct.poster_path,
+                cr.rt_critic_score
             FROM catalog_titles ct
             JOIN catalog_ratings cr ON cr.title_id = ct.id
             WHERE {where_clause}
@@ -282,6 +387,7 @@ def get_recommendations(
             num_votes=row[7],
             similarity_score=round(row[8], 4) if row[8] is not None else None,
             poster_path=row[9],
+            rt_critic_score=row[10],
         )
         for row in rows
     ]

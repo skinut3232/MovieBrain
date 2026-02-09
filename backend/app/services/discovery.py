@@ -576,6 +576,24 @@ def _get_trending_row(
         for row in rows
     ]
 
+    # Lazy-fetch OMDb ratings for trending movies missing RT scores
+    missing = [m for m in movies if m.rt_critic_score is None]
+    if missing:
+        from app.services.omdb import get_or_fetch_omdb_ratings
+
+        missing_ids = [m.title_id for m in missing]
+        titles = db.query(CatalogTitle).filter(CatalogTitle.id.in_(missing_ids)).all()
+        scores_map = {}
+        for title in titles:
+            try:
+                scores = get_or_fetch_omdb_ratings(db, title)
+                scores_map[title.id] = scores.get("rt_critic_score")
+            except Exception:
+                logger.debug("OMDb fetch failed for %s", title.imdb_tconst)
+        for m in missing:
+            if m.title_id in scores_map:
+                m.rt_critic_score = scores_map[m.title_id]
+
     return FeaturedRow(id="trending", title="Trending Now", movies=movies)
 
 
@@ -614,7 +632,7 @@ def get_featured_rows(
         genre_row = _get_row_by_query(
             db,
             genre.lower().replace("-", ""),
-            f"{genre} Movies",
+            genre,
             "COALESCE(cr.average_rating * LN(cr.num_votes + 1), 0) DESC",
             genre_filter=genre,
             limit=limit,

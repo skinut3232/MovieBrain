@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends
+import logging
+
+import numpy as np
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -11,11 +14,17 @@ from app.schemas.recommend import (
     TasteProfileResponse,
 )
 from app.services.recommender import (
+    blend_vectors,
     compute_taste_vector,
+    embed_mood_text,
+    generate_mood_description,
     get_recommendations,
+    get_user_top_movies,
     _get_existing_taste,
 )
 from app.services.tmdb import get_poster_url
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/profiles/{profile_id}", tags=["recommend"])
 
@@ -29,6 +38,35 @@ def recommend(
     db: Session = Depends(get_db),
 ):
     """Get movie recommendations for a profile with optional filters."""
+    search_vector = None
+    mood_mode = False
+
+    mood_text = (body.mood or "").strip()
+    if mood_text:
+        try:
+            top_movies = get_user_top_movies(db, profile.id)
+            description = generate_mood_description(mood_text, top_movies)
+            logger.info("Mood description for '%s': %s", mood_text, description)
+            mood_vec = embed_mood_text(description)
+
+            # Blend with taste vector if available
+            taste = _get_existing_taste(db, profile.id, MODEL_ID)
+            if taste is not None:
+                tv = taste.taste_vector
+                if isinstance(tv, str):
+                    tv = np.fromstring(tv.strip("[]"), sep=",").tolist()
+                search_vector = blend_vectors(mood_vec, tv)
+            else:
+                search_vector = mood_vec
+
+            mood_mode = True
+        except Exception as exc:
+            logger.error("Mood search failed: %s", exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Mood search is temporarily unavailable. Please try again.",
+            ) from exc
+
     result = get_recommendations(
         db=db,
         profile_id=profile.id,
@@ -41,6 +79,7 @@ def recommend(
         min_votes=body.min_votes,
         limit=body.limit,
         page=body.page,
+        search_vector=search_vector,
     )
     return RecommendResponse(
         results=[
@@ -55,6 +94,7 @@ def recommend(
                 num_votes=r.num_votes,
                 similarity_score=r.similarity_score,
                 poster_url=get_poster_url(r.poster_path),
+                rt_critic_score=r.rt_critic_score,
             )
             for r in result.results
         ],
@@ -62,6 +102,7 @@ def recommend(
         page=result.page,
         limit=result.limit,
         fallback_mode=result.fallback_mode,
+        mood_mode=mood_mode,
     )
 
 

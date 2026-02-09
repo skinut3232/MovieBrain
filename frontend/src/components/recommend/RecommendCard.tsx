@@ -29,6 +29,11 @@ export default function RecommendCard({ movie }: RecommendCardProps) {
                 IMDb {movie.average_rating.toFixed(1)}
               </span>
             )}
+            {movie.rt_critic_score != null && (
+              <span className={movie.rt_critic_score >= 60 ? 'text-red-400' : 'text-yellow-500'}>
+                {movie.rt_critic_score >= 60 ? '\uD83C\uDF45' : '\uD83E\uDD22'} {movie.rt_critic_score}%
+              </span>
+            )}
             {movie.num_votes != null && (
               <span className="text-gray-500">
                 {movie.num_votes.toLocaleString()} votes
