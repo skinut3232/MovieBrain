@@ -20,6 +20,8 @@ from app.services.recommender import (
     generate_mood_description,
     get_recommendations,
     get_user_top_movies,
+    lookup_titles_in_catalog,
+    suggest_mood_titles,
     _get_existing_taste,
 )
 from app.services.tmdb import get_poster_url
@@ -40,16 +42,39 @@ def recommend(
     """Get movie recommendations for a profile with optional filters."""
     search_vector = None
     mood_mode = False
+    llm_picks: list = []
 
     mood_text = (body.mood or "").strip()
     if mood_text:
         try:
             top_movies = get_user_top_movies(db, profile.id)
+
+            # Phase 1: Ask LLM for specific movie titles (the obvious picks)
+            suggestions = suggest_mood_titles(mood_text, top_movies)
+            logger.info("LLM suggested %d titles for mood '%s'", len(suggestions), mood_text)
+
+            # Build exclusion set for catalog lookup
+            from sqlalchemy import text as sa_text
+            excluded_ids = {
+                row[0]
+                for row in db.execute(
+                    sa_text("""
+                        SELECT title_id FROM watches WHERE profile_id = :pid
+                        UNION
+                        SELECT title_id FROM movie_flags WHERE profile_id = :pid
+                    """),
+                    {"pid": profile.id},
+                )
+            }
+
+            llm_picks = lookup_titles_in_catalog(db, suggestions, excluded_ids)
+            logger.info("Matched %d LLM picks in catalog", len(llm_picks))
+
+            # Phase 2: Also do embedding search for discovery picks
             description = generate_mood_description(mood_text, top_movies)
             logger.info("Mood description for '%s': %s", mood_text, description)
             mood_vec = embed_mood_text(description)
 
-            # Blend with taste vector if available
             taste = _get_existing_taste(db, profile.id, MODEL_ID)
             if taste is not None:
                 tv = taste.taste_vector
@@ -81,6 +106,17 @@ def recommend(
         page=body.page,
         search_vector=search_vector,
     )
+
+    # Merge: LLM picks first, then embedding discovery (deduplicated)
+    if llm_picks:
+        llm_pick_ids = {r.title_id for r in llm_picks}
+        embedding_results = [r for r in result.results if r.title_id not in llm_pick_ids]
+        # Fill up to the requested limit
+        merged = llm_picks + embedding_results
+        merged = merged[: body.limit]
+    else:
+        merged = result.results
+
     return RecommendResponse(
         results=[
             RecommendedTitle(
@@ -96,7 +132,7 @@ def recommend(
                 poster_url=get_poster_url(r.poster_path),
                 rt_critic_score=r.rt_critic_score,
             )
-            for r in result.results
+            for r in merged
         ],
         total=result.total,
         page=result.page,

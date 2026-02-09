@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     RECOMMEND_MIN_RATED_MOVIES: int = 5
     OPENAI_CHAT_MODEL: str = "gpt-4o-mini"
     MOOD_BLEND_WEIGHT: float = 0.6
+    RECENCY_BOOST: float = 0.2
+    RECENCY_WINDOW_DAYS: int = 90
+    POPULARITY_WEIGHT: float = 0.30
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

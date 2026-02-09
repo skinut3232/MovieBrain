@@ -1,4 +1,7 @@
+import json
+import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import numpy as np
 from openai import OpenAI
@@ -55,7 +58,7 @@ def compute_taste_vector(
     """
     rows = db.execute(
         text("""
-            SELECT me.embedding, w.rating_1_10
+            SELECT me.embedding, w.rating_1_10, w.updated_at
             FROM watches w
             JOIN movie_embeddings me ON me.title_id = w.title_id AND me.model_id = :model_id
             WHERE w.profile_id = :profile_id
@@ -67,11 +70,16 @@ def compute_taste_vector(
     if len(rows) < MIN_RATED:
         return None
 
+    now = datetime.now(timezone.utc)
+    window_days = settings.RECENCY_WINDOW_DAYS
+    boost = settings.RECENCY_BOOST
+
     embeddings = []
     weights = []
     for row in rows:
         vec_str = row[0]
         rating = row[1]
+        rated_at = row[2]
         if vec_str is None:
             continue
         # pgvector returns the vector as a string like "[0.1,0.2,...]"
@@ -80,7 +88,17 @@ def compute_taste_vector(
         else:
             vec = np.array(vec_str, dtype=np.float32)
         embeddings.append(vec)
-        weights.append(float(rating))
+
+        # Recency bonus: recent ratings get up to RECENCY_BOOST extra weight
+        if rated_at is not None:
+            if rated_at.tzinfo is None:
+                rated_at = rated_at.replace(tzinfo=timezone.utc)
+            days_ago = (now - rated_at).days
+            recency_factor = max(0.0, 1.0 - days_ago / window_days)
+        else:
+            recency_factor = 0.0
+        weight = float(rating) * (1.0 + boost * recency_factor)
+        weights.append(weight)
 
     if len(embeddings) < MIN_RATED:
         return None
@@ -193,6 +211,145 @@ def generate_mood_description(mood_text: str, top_movies: list[dict]) -> str:
         temperature=0.7,
     )
     return response.choices[0].message.content or mood_text
+
+
+logger = logging.getLogger(__name__)
+
+
+def suggest_mood_titles(mood_text: str, top_movies: list[dict], n: int = 20) -> list[dict]:
+    """Ask the LLM to suggest specific movie titles matching a mood.
+
+    Returns a list of {"title": str, "year": int|None} dicts.
+    """
+    client = _get_openai_client()
+
+    movies_context = ""
+    if top_movies:
+        lines = []
+        for m in top_movies:
+            year = f" ({m['year']})" if m.get("year") else ""
+            genres = f" [{m['genres']}]" if m.get("genres") else ""
+            lines.append(f"- {m['title']}{year}{genres} — rated {m['rating']}/10")
+        movies_context = "\n\nUser's top-rated movies:\n" + "\n".join(lines)
+
+    response = client.chat.completions.create(
+        model=settings.OPENAI_CHAT_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    f"You are a movie recommendation assistant. Given a user's mood, "
+                    f"suggest exactly {n} specific real movies that best match. "
+                    f"Start with the most iconic/obvious choices, then add lesser-known gems. "
+                    f"Respond ONLY with a JSON array of objects, each with \"title\" (string) "
+                    f"and \"year\" (integer). No other text."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Mood: {mood_text}{movies_context}",
+            },
+        ],
+        max_tokens=1000,
+        temperature=0.7,
+    )
+    raw = response.choices[0].message.content or "[]"
+    # Strip markdown fences if present
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+        if raw.endswith("```"):
+            raw = raw[:-3]
+        raw = raw.strip()
+    try:
+        suggestions = json.loads(raw)
+        if not isinstance(suggestions, list):
+            return []
+        return [
+            {"title": s.get("title", ""), "year": s.get("year")}
+            for s in suggestions
+            if isinstance(s, dict) and s.get("title")
+        ]
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("Failed to parse mood title suggestions: %s", raw[:200])
+        return []
+
+
+def lookup_titles_in_catalog(
+    db: Session,
+    suggestions: list[dict],
+    excluded_ids: set[int] | None = None,
+) -> list[RecommendationResult]:
+    """Look up LLM-suggested titles in the catalog.
+
+    Matches on exact title (case-insensitive) + year when available.
+    Returns results in the same order as the suggestions.
+    """
+    if not suggestions:
+        return []
+
+    excluded_ids = excluded_ids or set()
+    results = []
+    seen_ids: set[int] = set()
+
+    for s in suggestions:
+        title = s["title"]
+        year = s.get("year")
+
+        # Try exact match with year first, then without
+        if year:
+            row = db.execute(
+                text("""
+                    SELECT ct.id, ct.imdb_tconst, ct.primary_title, ct.start_year,
+                           ct.runtime_minutes, ct.genres, cr.average_rating, cr.num_votes,
+                           ct.poster_path, cr.rt_critic_score
+                    FROM catalog_titles ct
+                    JOIN catalog_ratings cr ON cr.title_id = ct.id
+                    WHERE LOWER(ct.primary_title) = LOWER(:title)
+                      AND ct.start_year = :year
+                    ORDER BY cr.num_votes DESC NULLS LAST
+                    LIMIT 1
+                """),
+                {"title": title, "year": year},
+            ).fetchone()
+        else:
+            row = None
+
+        # Fallback: match without year, pick most popular
+        if row is None:
+            row = db.execute(
+                text("""
+                    SELECT ct.id, ct.imdb_tconst, ct.primary_title, ct.start_year,
+                           ct.runtime_minutes, ct.genres, cr.average_rating, cr.num_votes,
+                           ct.poster_path, cr.rt_critic_score
+                    FROM catalog_titles ct
+                    JOIN catalog_ratings cr ON cr.title_id = ct.id
+                    WHERE LOWER(ct.primary_title) = LOWER(:title)
+                    ORDER BY cr.num_votes DESC NULLS LAST
+                    LIMIT 1
+                """),
+                {"title": title},
+            ).fetchone()
+
+        if row is None or row[0] in excluded_ids or row[0] in seen_ids:
+            continue
+
+        seen_ids.add(row[0])
+        results.append(RecommendationResult(
+            title_id=row[0],
+            imdb_tconst=row[1],
+            primary_title=row[2],
+            start_year=row[3],
+            runtime_minutes=row[4],
+            genres=row[5],
+            average_rating=row[6],
+            num_votes=row[7],
+            similarity_score=None,
+            poster_path=row[8],
+            rt_critic_score=row[9],
+        ))
+
+    return results
 
 
 def embed_mood_text(text: str) -> list[float]:
@@ -313,6 +470,7 @@ def get_recommendations(
         taste_vec_str = "[" + ",".join(str(float(x)) for x in vec_list) + "]"
         params["taste_vector"] = taste_vec_str
         params["model_id"] = MODEL_ID
+        params["pop_weight"] = settings.POPULARITY_WEIGHT
 
         count_sql = text(f"""
             SELECT COUNT(*)
@@ -333,14 +491,16 @@ def get_recommendations(
                 ct.genres,
                 cr.average_rating,
                 cr.num_votes,
-                1 - (me.embedding <=> CAST(:taste_vector AS vector)) AS similarity_score,
+                (1 - :pop_weight) * (1 - (me.embedding <=> CAST(:taste_vector AS vector)))
+                  + :pop_weight * COALESCE(cr.rt_critic_score / 100.0, cr.average_rating / 10.0, 0.5)
+                AS blended_score,
                 ct.poster_path,
                 cr.rt_critic_score
             FROM movie_embeddings me
             JOIN catalog_titles ct ON ct.id = me.title_id
             JOIN catalog_ratings cr ON cr.title_id = ct.id
             WHERE me.model_id = :model_id AND {where_clause}
-            ORDER BY me.embedding <=> CAST(:taste_vector AS vector) ASC
+            ORDER BY blended_score DESC
             LIMIT :limit OFFSET :offset
         """)
     else:
