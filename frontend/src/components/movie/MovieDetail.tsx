@@ -5,7 +5,6 @@ import MoviePoster from '../common/MoviePoster';
 import CriticScores from './CriticScores';
 import MovieActions from './MovieActions';
 import SimilarMovies from './SimilarMovies';
-import TrailerEmbed from './TrailerEmbed';
 import WatchProviders from './WatchProviders';
 
 interface Props {
@@ -62,7 +61,7 @@ export default function MovieDetail({ title }: Props) {
             />
           </div>
 
-          <MovieActions titleId={title.id} titleName={title.primary_title} />
+          <MovieActions titleId={title.id} titleName={title.primary_title} trailerKey={title.trailer_key} />
         </div>
       </div>
 
@@ -119,11 +118,6 @@ export default function MovieDetail({ title }: Props) {
             ))}
           </div>
         </div>
-      )}
-
-      {/* Trailer */}
-      {title.trailer_key && (
-        <TrailerEmbed trailerKey={title.trailer_key} title={title.primary_title} />
       )}
 
       {/* Similar Movies */}

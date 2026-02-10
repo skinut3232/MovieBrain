@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createFlag, deleteFlag, getFlags } from '../../api/flags';
 import { getLists, addListItem } from '../../api/lists';
 import { useProfile } from '../../context/ProfileContext';
@@ -8,15 +8,28 @@ import LogWatchModal from './LogWatchModal';
 interface Props {
   titleId: number;
   titleName: string;
+  trailerKey?: string | null;
 }
 
-export default function MovieActions({ titleId, titleName }: Props) {
+export default function MovieActions({ titleId, titleName, trailerKey }: Props) {
   const { activeProfile } = useProfile();
   const [showLogModal, setShowLogModal] = useState(false);
+  const [showTrailer, setShowTrailer] = useState(false);
   const [flag, setFlag] = useState<FlagResponse | null>(null);
   const [lists, setLists] = useState<ListResponse[]>([]);
   const [showListMenu, setShowListMenu] = useState(false);
   const [addedMessage, setAddedMessage] = useState('');
+
+  const closeTrailer = useCallback(() => setShowTrailer(false), []);
+
+  useEffect(() => {
+    if (!showTrailer) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeTrailer();
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [showTrailer, closeTrailer]);
 
   const profileId = activeProfile?.id;
 
@@ -111,6 +124,18 @@ export default function MovieActions({ titleId, titleName }: Props) {
         {flag ? 'Not Interested (undo)' : 'Not Interested'}
       </button>
 
+      {trailerKey && (
+        <>
+          <div className="basis-full h-0" />
+          <button
+            onClick={() => setShowTrailer(true)}
+            className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white"
+          >
+            Watch Trailer
+          </button>
+        </>
+      )}
+
       {addedMessage && (
         <span className="text-sm text-green-400">{addedMessage}</span>
       )}
@@ -123,6 +148,35 @@ export default function MovieActions({ titleId, titleName }: Props) {
           onClose={() => setShowLogModal(false)}
           onSaved={() => {}}
         />
+      )}
+
+      {showTrailer && trailerKey && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={closeTrailer}
+        >
+          <div
+            className="relative w-full max-w-4xl mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={closeTrailer}
+              className="absolute -top-10 right-0 text-white hover:text-gray-300 text-3xl leading-none"
+              aria-label="Close trailer"
+            >
+              &times;
+            </button>
+            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+              <iframe
+                className="absolute inset-0 w-full h-full rounded-lg"
+                src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1`}
+                title={`${titleName} trailer`}
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
