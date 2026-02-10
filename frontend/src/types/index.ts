@@ -28,6 +28,7 @@ export interface TitleSearchResult {
   average_rating: number | null;
   num_votes: number | null;
   poster_url: string | null;
+  rt_critic_score?: number | null;
 }
 
 export interface PaginatedSearchResponse {
@@ -218,6 +219,7 @@ export interface OnboardingMovie {
   average_rating: number | null;
   num_votes: number | null;
   poster_url: string | null;
+  rt_critic_score?: number | null;
 }
 
 export interface OnboardingMoviesResponse {
@@ -259,6 +261,7 @@ export interface SimilarTitle {
   num_votes: number | null;
   similarity_score: number;
   poster_url: string | null;
+  rt_critic_score?: number | null;
 }
 
 export interface PersonDetail {
@@ -280,6 +283,7 @@ export interface FilmographyItem {
   average_rating: number | null;
   num_votes: number | null;
   poster_url: string | null;
+  rt_critic_score?: number | null;
 }
 
 export interface PersonWithFilmography {
@@ -305,6 +309,7 @@ export interface CollectionTitle {
   num_votes: number | null;
   poster_url: string | null;
   position: number | null;
+  rt_critic_score?: number | null;
 }
 
 export interface CollectionDetail {

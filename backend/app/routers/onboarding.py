@@ -20,7 +20,8 @@ def get_onboarding_movies(
     rows = db.execute(
         text("""
             SELECT ct.id, ct.primary_title, ct.start_year, ct.genres,
-                   cr.average_rating, cr.num_votes, ct.poster_path
+                   cr.average_rating, cr.num_votes, ct.poster_path,
+                   cr.rt_critic_score
             FROM onboarding_movies om
             JOIN catalog_titles ct ON ct.id = om.title_id
             LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
@@ -60,6 +61,7 @@ def get_onboarding_movies(
             average_rating=row[4],
             num_votes=row[5],
             poster_url=get_poster_url(row[6]),
+            rt_critic_score=row[7],
         )
         for row in rows
     ]

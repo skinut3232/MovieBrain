@@ -34,9 +34,9 @@ export default function OnboardingCard({ movie, onRate, onSkip }: Props) {
       <div className="text-sm text-gray-400 mt-1">
         {movie.start_year && <span>{movie.start_year}</span>}
       </div>
-      {movie.average_rating != null && (
-        <div className="text-xs text-gray-500 mt-1">
-          IMDb {movie.average_rating.toFixed(1)}
+      {movie.rt_critic_score != null && (
+        <div className={`text-xs mt-1 ${movie.rt_critic_score >= 60 ? 'text-red-400' : 'text-yellow-500'}`}>
+          {movie.rt_critic_score >= 60 ? '🍅' : '🤢'} {movie.rt_critic_score}%
         </div>
       )}
 

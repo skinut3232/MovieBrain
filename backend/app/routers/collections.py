@@ -71,6 +71,7 @@ def get_collection(
                 num_votes=m.num_votes,
                 poster_url=get_poster_url(m.poster_path),
                 position=m.position,
+                rt_critic_score=m.rt_critic_score,
             )
             for m in movies
         ],

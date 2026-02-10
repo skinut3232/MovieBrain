@@ -18,6 +18,7 @@ class CollectionTitle:
     num_votes: int | None
     poster_path: str | None
     position: int | None = None
+    rt_critic_score: int | None = None
 
 
 def get_all_collections(db: Session) -> list[Collection]:
@@ -70,7 +71,8 @@ def _get_curated_collection_movies(
             cr.average_rating,
             cr.num_votes,
             ct.poster_path,
-            ci.position
+            ci.position,
+            cr.rt_critic_score
         FROM collection_items ci
         JOIN catalog_titles ct ON ct.id = ci.title_id
         LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
@@ -95,6 +97,7 @@ def _get_curated_collection_movies(
             num_votes=row[6],
             poster_path=row[7],
             position=row[8],
+            rt_critic_score=row[9],
         )
         for row in rows
     ], total
@@ -164,7 +167,8 @@ def _get_auto_collection_movies(
             ct.genres,
             cr.average_rating,
             cr.num_votes,
-            ct.poster_path
+            ct.poster_path,
+            cr.rt_critic_score
         FROM catalog_titles ct
         JOIN catalog_ratings cr ON cr.title_id = ct.id
         WHERE {where_clause}
@@ -184,6 +188,7 @@ def _get_auto_collection_movies(
             average_rating=row[5],
             num_votes=row[6],
             poster_path=row[7],
+            rt_critic_score=row[8],
         )
         for row in rows
     ], total

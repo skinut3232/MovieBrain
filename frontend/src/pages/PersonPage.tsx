@@ -108,9 +108,9 @@ export default function PersonPage() {
                       )}
                     </div>
                   </div>
-                  {item.average_rating != null && (
-                    <div className="text-amber-400 font-semibold text-sm">
-                      {item.average_rating.toFixed(1)}
+                  {item.rt_critic_score != null && (
+                    <div className={`font-semibold text-sm ${item.rt_critic_score >= 60 ? 'text-red-400' : 'text-yellow-500'}`}>
+                      {item.rt_critic_score >= 60 ? '🍅' : '🤢'} {item.rt_critic_score}%
                     </div>
                   )}
                 </Link>

@@ -23,12 +23,10 @@ export default function TitleCard({ title }: Props) {
               <span className="text-gray-500">{title.genres}</span>
             )}
           </div>
-          {title.average_rating != null && (
+          {title.rt_critic_score != null && (
             <div className="mt-2 text-sm">
-              <span className="text-amber-400">{title.average_rating}</span>
-              <span className="text-gray-500">
-                {' '}
-                ({title.num_votes?.toLocaleString()} votes)
+              <span className={title.rt_critic_score >= 60 ? 'text-red-400' : 'text-yellow-500'}>
+                {title.rt_critic_score >= 60 ? '🍅' : '🤢'} {title.rt_critic_score}%
               </span>
             </div>
           )}

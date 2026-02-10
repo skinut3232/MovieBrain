@@ -39,6 +39,7 @@ class SimilarMovieResult:
     num_votes: int | None
     similarity_score: float
     poster_path: str | None
+    rt_critic_score: int | None = None
 
 
 @dataclass
@@ -53,6 +54,7 @@ class PersonFilmography:
     average_rating: float | None
     num_votes: int | None
     poster_path: str | None
+    rt_critic_score: int | None = None
 
 
 SortOption = Literal["popularity", "rating", "year_desc", "year_asc"]
@@ -225,7 +227,8 @@ def get_similar_movies(
             cr.average_rating,
             cr.num_votes,
             1 - (me.embedding <=> (SELECT embedding FROM movie_embeddings WHERE title_id = :title_id AND model_id = :model_id)) AS similarity_score,
-            ct.poster_path
+            ct.poster_path,
+            cr.rt_critic_score
         FROM movie_embeddings me
         JOIN catalog_titles ct ON ct.id = me.title_id
         JOIN catalog_ratings cr ON cr.title_id = ct.id
@@ -249,6 +252,7 @@ def get_similar_movies(
             num_votes=row[7],
             similarity_score=round(row[8], 4) if row[8] else 0.0,
             poster_path=row[9],
+            rt_critic_score=row[10],
         )
         for row in rows
     ]
@@ -293,7 +297,8 @@ def _get_similar_by_metadata(
             cr.average_rating,
             cr.num_votes,
             0.0 AS similarity_score,
-            ct.poster_path
+            ct.poster_path,
+            cr.rt_critic_score
         FROM catalog_titles ct
         JOIN catalog_ratings cr ON cr.title_id = ct.id
         WHERE {where_clause}
@@ -313,8 +318,9 @@ def _get_similar_by_metadata(
             genres=row[5],
             average_rating=row[6],
             num_votes=row[7],
-            similarity_score=0.0,  # No similarity score for metadata fallback
+            similarity_score=0.0,
             poster_path=row[9],
+            rt_critic_score=row[10],
         )
         for row in rows
     ]
@@ -341,7 +347,8 @@ def get_person_filmography(
             cp.characters,
             cr.average_rating,
             cr.num_votes,
-            ct.poster_path
+            ct.poster_path,
+            cr.rt_critic_score
         FROM catalog_principals cp
         JOIN catalog_titles ct ON ct.id = cp.title_id
         LEFT JOIN catalog_ratings cr ON cr.title_id = ct.id
@@ -363,6 +370,7 @@ def get_person_filmography(
             average_rating=row[7],
             num_votes=row[8],
             poster_path=row[9],
+            rt_critic_score=row[10],
         )
         for row in rows
     ]

@@ -13,6 +13,7 @@ class TitleSearchResult(BaseModel):
     average_rating: float | None
     num_votes: int | None
     poster_url: str | None = None
+    rt_critic_score: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -128,6 +129,7 @@ class SimilarTitle(BaseModel):
     num_votes: int | None
     similarity_score: float
     poster_url: str | None = None
+    rt_critic_score: int | None = None
 
 
 class PersonDetailResponse(BaseModel):
@@ -149,6 +151,7 @@ class FilmographyItem(BaseModel):
     average_rating: float | None
     num_votes: int | None
     poster_url: str | None = None
+    rt_critic_score: int | None = None
 
 
 class PersonWithFilmography(BaseModel):
@@ -184,6 +187,7 @@ class CollectionTitle(BaseModel):
     num_votes: int | None
     poster_url: str | None = None
     position: int | None = None
+    rt_critic_score: int | None = None
 
 
 class CollectionDetailResponse(BaseModel):

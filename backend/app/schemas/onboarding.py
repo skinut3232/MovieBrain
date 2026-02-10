@@ -9,6 +9,7 @@ class OnboardingMovieResponse(BaseModel):
     average_rating: float | None
     num_votes: int | None
     poster_url: str | None = None
+    rt_critic_score: int | None = None
 
     model_config = {"from_attributes": True}
 

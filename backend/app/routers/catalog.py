@@ -88,6 +88,7 @@ def search(
                 average_rating=rating.average_rating if rating else None,
                 num_votes=rating.num_votes if rating else None,
                 poster_url=get_poster_url(title.poster_path),
+                rt_critic_score=rating.rt_critic_score if rating else None,
             )
         )
 
@@ -330,6 +331,7 @@ def get_similar(
             num_votes=r.num_votes,
             similarity_score=r.similarity_score,
             poster_url=get_poster_url(r.poster_path),
+            rt_critic_score=r.rt_critic_score,
         )
         for r in results
     ]
@@ -364,6 +366,7 @@ def get_person(person_id: int, db: Session = Depends(get_db)):
                 average_rating=f.average_rating,
                 num_votes=f.num_votes,
                 poster_url=get_poster_url(f.poster_path),
+                rt_critic_score=f.rt_critic_score,
             )
             for f in filmography
         ],

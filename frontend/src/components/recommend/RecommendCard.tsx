@@ -23,23 +23,13 @@ export default function RecommendCard({ movie }: RecommendCardProps) {
             {movie.runtime_minutes && <span>{movie.runtime_minutes} min</span>}
             {movie.genres && <span>{movie.genres}</span>}
           </div>
-          <div className="flex items-center gap-3 mt-2 text-sm">
-            {movie.average_rating != null && (
-              <span className="text-amber-400">
-                IMDb {movie.average_rating.toFixed(1)}
-              </span>
-            )}
-            {movie.rt_critic_score != null && (
+          {movie.rt_critic_score != null && (
+            <div className="mt-2 text-sm">
               <span className={movie.rt_critic_score >= 60 ? 'text-red-400' : 'text-yellow-500'}>
-                {movie.rt_critic_score >= 60 ? '\uD83C\uDF45' : '\uD83E\uDD22'} {movie.rt_critic_score}%
+                {movie.rt_critic_score >= 60 ? '🍅' : '🤢'} {movie.rt_critic_score}%
               </span>
-            )}
-            {movie.num_votes != null && (
-              <span className="text-gray-500">
-                {movie.num_votes.toLocaleString()} votes
-              </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {movie.similarity_score != null && (
