@@ -19,14 +19,41 @@ interface MoodInputProps {
 
 export default function MoodInput({ onSearch, onClear, loading }: MoodInputProps) {
   const [text, setText] = useState('');
+  const [selectedPresets, setSelectedPresets] = useState<Set<string>>(new Set());
+
+  const hasInput = selectedPresets.size > 0 || text.trim().length > 0;
+
+  const buildMoodString = (): string => {
+    const parts: string[] = [];
+    if (selectedPresets.size > 0) {
+      parts.push(Array.from(selectedPresets).join(', '));
+    }
+    if (text.trim()) {
+      parts.push(text.trim());
+    }
+    return parts.join('. ');
+  };
+
+  const handleTogglePreset = (preset: string) => {
+    setSelectedPresets((prev) => {
+      const next = new Set(prev);
+      if (next.has(preset)) {
+        next.delete(preset);
+      } else {
+        next.add(preset);
+      }
+      return next;
+    });
+  };
 
   const handleSearch = () => {
-    const trimmed = text.trim();
-    if (trimmed) onSearch(trimmed);
+    const mood = buildMoodString();
+    if (mood) onSearch(mood);
   };
 
   const handleClear = () => {
     setText('');
+    setSelectedPresets(new Set());
     onClear();
   };
 
@@ -44,22 +71,29 @@ export default function MoodInput({ onSearch, onClear, loading }: MoodInputProps
       </h2>
 
       <div className="flex flex-wrap gap-2 mb-3">
-        {MOOD_PRESETS.map((preset) => (
-          <button
-            key={preset}
-            onClick={() => setText(preset)}
-            className="px-3 py-1.5 rounded-full text-sm border border-gray-600 text-gray-300 hover:border-amber-400 hover:text-amber-400 transition-colors"
-          >
-            {preset}
-          </button>
-        ))}
+        {MOOD_PRESETS.map((preset) => {
+          const isSelected = selectedPresets.has(preset);
+          return (
+            <button
+              key={preset}
+              onClick={() => handleTogglePreset(preset)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                isSelected
+                  ? 'border-amber-400 bg-amber-400/15 text-amber-400'
+                  : 'border-gray-600 text-gray-300 hover:border-amber-400 hover:text-amber-400'
+              }`}
+            >
+              {preset}
+            </button>
+          );
+        })}
       </div>
 
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value.slice(0, 500))}
         onKeyDown={handleKeyDown}
-        placeholder="Describe what you're in the mood for..."
+        placeholder="Add more detail... (optional)"
         rows={2}
         className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 resize-none"
       />
@@ -67,7 +101,7 @@ export default function MoodInput({ onSearch, onClear, loading }: MoodInputProps
       <div className="flex items-center justify-between mt-2">
         <span className="text-xs text-gray-500">{text.length}/500</span>
         <div className="flex items-center gap-3">
-          {text.trim() && (
+          {hasInput && (
             <button
               onClick={handleClear}
               disabled={loading}
@@ -78,7 +112,7 @@ export default function MoodInput({ onSearch, onClear, loading }: MoodInputProps
           )}
           <button
             onClick={handleSearch}
-            disabled={loading || !text.trim()}
+            disabled={loading || !hasInput}
             className="px-4 py-2 rounded bg-amber-500 hover:bg-amber-600 text-black font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Searching...' : 'Search'}
