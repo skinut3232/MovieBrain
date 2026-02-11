@@ -392,3 +392,78 @@ export interface ProviderMaster {
 export interface ProviderListResponse {
   providers: ProviderMaster[];
 }
+
+// Stats types
+export interface RatingBucket {
+  rating: number;
+  count: number;
+}
+
+export interface GenreCount {
+  genre: string;
+  count: number;
+}
+
+export interface PersonStat {
+  person_id: number;
+  name: string;
+  count: number;
+  avg_rating: number | null;
+}
+
+export interface CriticComparison {
+  title_id: number;
+  primary_title: string;
+  user_score: number;
+  critic_score: number;
+}
+
+export interface MonthCount {
+  month: string;
+  count: number;
+}
+
+export interface MonthRating {
+  month: string;
+  avg_rating: number;
+}
+
+export interface DecadeCount {
+  decade: number;
+  count: number;
+}
+
+export interface RatedMovie {
+  title_id: number;
+  primary_title: string;
+  start_year: number | null;
+  rating: number;
+  poster_url: string | null;
+}
+
+export interface LanguageCount {
+  language: string;
+  count: number;
+}
+
+export interface ProfileStats {
+  total_movies: number;
+  avg_rating: number | null;
+  total_runtime_minutes: number;
+  unique_languages: number;
+  total_rewatches: number;
+  rating_distribution: RatingBucket[];
+  genre_breakdown: GenreCount[];
+  top_directors: PersonStat[];
+  top_actors: PersonStat[];
+  critic_comparisons: CriticComparison[];
+  avg_user_score: number | null;
+  avg_critic_score: number | null;
+  avg_difference: number | null;
+  movies_per_month: MonthCount[];
+  rating_over_time: MonthRating[];
+  decade_distribution: DecadeCount[];
+  highest_rated: RatedMovie[];
+  lowest_rated: RatedMovie[];
+  language_diversity: LanguageCount[];
+}

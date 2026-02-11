@@ -1,4 +1,4 @@
-import type { PaginatedWatchHistory, Tag, WatchCreate, WatchResponse } from '../types';
+import type { PaginatedWatchHistory, ProfileStats, Tag, WatchCreate, WatchResponse } from '../types';
 import api from './client';
 
 export async function logWatch(
@@ -55,4 +55,13 @@ export async function deleteTag(
   tagId: number
 ): Promise<void> {
   await api.delete(`/profiles/${profileId}/tags/${tagId}`);
+}
+
+export async function getProfileStats(
+  profileId: number
+): Promise<ProfileStats> {
+  const { data } = await api.get<ProfileStats>(
+    `/profiles/${profileId}/stats`
+  );
+  return data;
 }

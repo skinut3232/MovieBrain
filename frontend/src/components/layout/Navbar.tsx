@@ -20,7 +20,7 @@ export default function Navbar() {
           Explore
         </Link>
         <Link to="/history" className="hover:text-amber-300">
-          History
+          Stats
         </Link>
         <Link to="/recommend" className="hover:text-amber-300">
           Recommend

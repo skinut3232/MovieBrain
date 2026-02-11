@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_db, get_verified_profile
 from app.models.personal import Tag, Watch
 from app.models.user import Profile
+from app.schemas.stats import ProfileStats
 from app.schemas.watch import (
     PaginatedWatchHistory,
     TagCreate,
@@ -14,6 +15,7 @@ from app.schemas.watch import (
     WatchResponse,
     WatchUpdate,
 )
+from app.services.stats import get_profile_stats
 from app.services.watch import (
     create_or_update_watch,
     create_tag,
@@ -79,6 +81,14 @@ def list_history(
     return PaginatedWatchHistory(
         results=results, total=total, page=page, limit=limit
     )
+
+
+@router.get("/stats", response_model=ProfileStats)
+def profile_stats(
+    profile: Profile = Depends(get_verified_profile),
+    db: Session = Depends(get_db),
+):
+    return get_profile_stats(db, profile.id)
 
 
 @router.delete(
