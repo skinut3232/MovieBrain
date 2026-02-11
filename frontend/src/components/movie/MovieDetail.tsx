@@ -74,7 +74,7 @@ export default function MovieDetail({ title }: Props) {
       )}
 
       {/* Where to Watch */}
-      <WatchProviders titleId={title.id} />
+      <WatchProviders titleId={title.id} title={title.primary_title} />
 
       {/* Directors */}
       {directors.length > 0 && (
