@@ -1,0 +1,6 @@
+backend/
+.git/
+node_modules/
+.claude/
+*.dump
+*.log

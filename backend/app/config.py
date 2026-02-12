@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     ENVIRONMENT: str = "development"
+    CORS_ORIGINS: str = ""
+    ROOT_PATH: str = ""
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
 
     OPENAI_API_KEY: str = ""
     TMDB_API_KEY: str = ""

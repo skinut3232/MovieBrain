@@ -1,0 +1,16 @@
+services:
+  db:
+    ports: !reset []
+
+  backend:
+    ports: !reset []
+    environment:
+      ENVIRONMENT: production
+      ROOT_PATH: /api
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot-conf:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
