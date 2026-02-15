@@ -73,6 +73,10 @@ Key tables:
 2. Update model in `backend/app/models/`
 3. Run `python -m alembic upgrade head`
 
+## Obsidian Project Note
+
+`C:\Users\Rob\Documents\Software\Obsidian\My Notebook\1 Projects\MovieBrain.md`
+
 ## Current State (Feb 2026)
 
 Recent work:
